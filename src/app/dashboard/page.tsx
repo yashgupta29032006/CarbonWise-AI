@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useCarbon } from "@/context/CarbonContext";
 import { useToast } from "@/components/ui/Toast";
+import ReactMarkdown from "react-markdown";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Button from "@/components/ui/Button";
@@ -59,6 +60,7 @@ import {
 export default function Dashboard() {
   const {
     isOnboarded,
+    onboardingData,
     activeEntry,
     emissionsBreakdown,
     scoreInfo,
@@ -173,26 +175,39 @@ export default function Dashboard() {
     }));
 
   // AI chat send handler
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim()) return;
+  const sendMessage = async (userMsg: string) => {
+    if (!userMsg.trim() || isTyping) return;
 
-    const userMsg = chatInput.trim();
     setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
-    setChatInput("");
     setIsTyping(true);
 
     try {
-      // Send chat context to Next.js API Route Handler
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [...messages, { role: "user", content: userMsg }].slice(-6),
-          carbonData: emissionsBreakdown,
-          habits: habits,
+          messages: [...messages, { role: "user", content: userMsg }].slice(-10),
           region: activeEntry.region,
-          history: historySubmissions.map((s) => ({ score: s.score, total: s.emissions.total, date: new Date(s.timestamp).toLocaleDateString() })),
+          householdSize: activeEntry.householdSize,
+          transportData: activeEntry.transport,
+          electricityUsage: activeEntry.electricity,
+          foodHabits: activeEntry.food,
+          wasteHabits: activeEntry.waste,
+          shoppingHabits: activeEntry.shopping,
+          carbonScore: scoreInfo.score,
+          highestEmissionCategory: worstCategory.name,
+          sustainabilityGoals: {
+            weeklyReductionTarget,
+            monthlyCO2Target,
+            goalType: onboardingData?.goalType || "20",
+          },
+          historicalTrendSummary: {
+            rollingAverage,
+            improvementPercentage,
+            submissionsCount: historySubmissions.length,
+          },
+          carbonData: emissionsBreakdown,
+          habits: habits.map((h) => ({ name: h.name, streak: h.streak })),
         }),
       });
 
@@ -200,21 +215,29 @@ export default function Dashboard() {
         const data = await response.json();
         setMessages((prev) => [...prev, { role: "coach", content: data.reply }]);
       } else {
-        const localReply = getLocalCoachResponse(userMsg, activeEntry, emissionsBreakdown);
+        const fallbackNotice = "🌱 *Note: Showing locally generated fallback recommendations as the AI Coach is offline.* \n\n";
+        const localReply = fallbackNotice + getLocalCoachResponse(userMsg, activeEntry, emissionsBreakdown);
         setTimeout(() => {
           setMessages((prev) => [...prev, { role: "coach", content: localReply }]);
         }, 800);
       }
     } catch {
-      const localReply = getLocalCoachResponse(userMsg, activeEntry, emissionsBreakdown);
+      const fallbackNotice = "🌱 *Note: Showing locally generated fallback recommendations as the AI Coach is offline.* \n\n";
+      const localReply = fallbackNotice + getLocalCoachResponse(userMsg, activeEntry, emissionsBreakdown);
       setMessages((prev) => [...prev, { role: "coach", content: localReply }]);
     } finally {
       setIsTyping(false);
     }
   };
 
-  const handlePromptClick = (prompt: string) => {
-    setChatInput(prompt);
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await sendMessage(chatInput);
+    setChatInput("");
+  };
+
+  const handlePromptClick = async (prompt: string) => {
+    await sendMessage(prompt);
   };
 
   // Streaks calculation
@@ -822,19 +845,22 @@ Disclaimer: Carbon estimates are approximate and intended for awareness and educ
                           : "bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-tr-none font-medium shadow-md shadow-emerald-500/5"
                       }`}
                     >
-                      <div className="whitespace-pre-wrap space-y-2">
-                        {m.content.split("\n").map((line, lIdx) => {
-                          if (line.startsWith("### ")) {
-                            return <h4 key={lIdx} className="font-bold text-zinc-900 dark:text-zinc-100 mt-2 text-sm">{line.replace("### ", "")}</h4>;
-                          }
-                          if (line.startsWith("#### ")) {
-                            return <h5 key={lIdx} className="font-bold text-zinc-900 dark:text-zinc-100 mt-1 text-xs">{line.replace("#### ", "")}</h5>;
-                          }
-                          if (line.startsWith("- ")) {
-                            return <li key={lIdx} className="ml-4 list-disc text-xs">{line.replace("- ", "")}</li>;
-                          }
-                          return <p key={lIdx} className="text-xs sm:text-sm">{line}</p>;
-                        })}
+                      <div className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-zinc-800 dark:text-zinc-200">
+                        <ReactMarkdown
+                          components={{
+                            h1: ({ children }) => <h1 className="text-sm font-extrabold text-zinc-950 dark:text-zinc-50 mt-3 mb-1.5">{children}</h1>,
+                            h2: ({ children }) => <h2 className="text-xs font-extrabold text-zinc-950 dark:text-zinc-50 mt-2.5 mb-1">{children}</h2>,
+                            h3: ({ children }) => <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-2 mb-1">{children}</h3>,
+                            h4: ({ children }) => <h4 className="text-[11px] font-bold text-zinc-900 dark:text-zinc-100 mt-1.5 mb-0.5">{children}</h4>,
+                            p: ({ children }) => <p className="my-1.5 leading-relaxed">{children}</p>,
+                            ul: ({ children }) => <ul className="list-disc pl-5 my-1.5 space-y-1">{children}</ul>,
+                            ol: ({ children }) => <ol className="list-decimal pl-5 my-1.5 space-y-1">{children}</ol>,
+                            li: ({ children }) => <li className="leading-relaxed list-item">{children}</li>,
+                            strong: ({ children }) => <strong className="font-bold text-zinc-950 dark:text-zinc-50">{children}</strong>,
+                          }}
+                        >
+                          {m.content}
+                        </ReactMarkdown>
                       </div>
                     </div>
                   </div>
@@ -854,15 +880,18 @@ Disclaimer: Carbon estimates are approximate and intended for awareness and educ
             {/* Suggested prompts */}
             <div className="flex flex-wrap gap-1.5 py-3 border-t border-zinc-100 dark:border-zinc-800/80 no-print">
               {[
-                "Why is transportation my biggest emitter?",
-                "Give me a 30-day improvement plan.",
-                "How to cut energy without spending money?",
-                "Suggest realistic changes for a college student.",
+                "Explain my carbon score",
+                "How can I reduce transportation emissions?",
+                "Give me a 30-day sustainability plan",
+                "What is my biggest source of emissions?",
+                "Suggest the highest impact actions",
+                "How can I reduce electricity usage?",
               ].map((prompt) => (
                 <button
                   key={prompt}
                   onClick={() => handlePromptClick(prompt)}
-                  className="px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/60 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-[10px] sm:text-xs font-medium text-zinc-600 dark:text-zinc-400 transition-all focus:outline-none"
+                  disabled={isTyping}
+                  className="px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/60 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-[10px] sm:text-xs font-medium text-zinc-600 dark:text-zinc-400 transition-all focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {prompt}
                 </button>

@@ -5,61 +5,85 @@ interface ChatMessage {
   content: string;
 }
 
-interface CarbonData {
-  total: number;
-  transport: number;
-  electricity: number;
-  food: number;
-  waste: number;
-  shopping: number;
-}
-
-interface HabitData {
-  name: string;
-  streak: number;
-}
-
 export async function POST(req: NextRequest) {
   try {
-    const { messages, carbonData, habits, region } = await req.json() as {
-      messages: ChatMessage[];
-      carbonData: CarbonData;
-      habits: HabitData[];
-      region: string;
-    };
+    const payload = await req.json();
+    const {
+      messages = [],
+      region = "Global",
+      householdSize = 1,
+      transportData = {},
+      electricityUsage = 0,
+      foodHabits = "mixed",
+      wasteHabits = {},
+      shoppingHabits = "medium",
+      carbonScore = 50,
+      highestEmissionCategory = "None",
+      sustainabilityGoals = {},
+      historicalTrendSummary = {},
+      carbonData = {},
+      habits = [],
+    } = payload;
 
-    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
+      console.warn("Gemini API Key (GEMINI_API_KEY) is not configured in the server environment.");
       return NextResponse.json(
-        { error: "API key not configured. Using client fallback." },
+        { error: "API key is not configured on the server. Falling back to local coach." },
         { status: 404 }
       );
     }
 
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-    const systemInstruction = `
-      You are the "CarbonWise AI Coach", an expert sustainability coach.
-      The user is tracking their carbon footprint on CarbonWise AI.
-      Here is the user's current carbon footprint data (annual emissions):
-      - Total Annual Footprint: ${carbonData.total} kg CO2 equivalent.
-      - Transportation: ${carbonData.transport} kg CO2.
-      - Electricity: ${carbonData.electricity} kg CO2.
-      - Food Habits: ${carbonData.food} kg CO2.
-      - Waste Management: ${carbonData.waste} kg CO2.
-      - Shopping: ${carbonData.shopping} kg CO2.
-      - User Region: ${region}
-      
-      Active habits logged: ${habits.map((h) => `${h.name} (Streak: ${h.streak} days)`).join(", ")}.
+    // Map score to rating bands
+    let ratingBand = "Moderate";
+    if (carbonScore >= 85) ratingBand = "Excellent";
+    else if (carbonScore >= 70) ratingBand = "Good";
+    else if (carbonScore >= 50) ratingBand = "Moderate";
+    else if (carbonScore >= 30) ratingBand = "High";
+    else ratingBand = "Critical";
 
-      Your role is to offer encouraging, intelligent, highly actionable advice to help the user reduce their footprint.
-      Provide realistic suggestions, such as carpooling, transit, dietary shifts (meat reduction), composting, and energy efficiency.
-      Keep your response concise, engaging, and formatted in clean markdown. 
-      Speak directly to the user's data. Avoid generic fluff. Make sure you compare their score or emissions to the sustainable target of 3,500 kg CO2/year.
-    `;
+    // System prompt setup
+    const systemInstruction = `You are an expert sustainability coach helping users understand, track, and reduce their carbon footprint. Use the provided user profile and calculations to generate practical, personalized, actionable advice. Explain recommendations clearly and avoid generic responses.
 
-    const contents = messages.map((m) => ({
+Here is the user's detailed sustainability profile:
+- **Region**: ${region}
+- **Household Size**: ${householdSize} occupants (emissions split accordingly)
+- **Carbon Score**: ${carbonScore}/100 (Rating: ${ratingBand})
+- **Highest Emission Category**: ${highestEmissionCategory}
+- **Electricity Usage**: ${electricityUsage} kWh/month
+- **Food Preference**: ${foodHabits}
+- **Shopping Frequency**: ${shoppingHabits}
+- **Transportation Details (annual km)**:
+  ${Object.entries(transportData || {}).map(([mode, km]) => `- ${mode}: ${km} km`).join("\n  ")}
+- **Waste Details**:
+  - Recycling Frequency: ${wasteHabits?.recyclingFrequency || "N/A"}
+  - Plastic Usage: ${wasteHabits?.plasticUsage || "N/A"}
+  - Composting: ${wasteHabits?.composting ? "Yes" : "No"}
+  - Waste Generation: ${wasteHabits?.wasteGeneration || "N/A"}
+- **Current Carbon Breakdown (kg CO2/year)**:
+  - Transport: ${carbonData?.transport ?? 0} kg
+  - Electricity: ${carbonData?.electricity ?? 0} kg
+  - Food: ${carbonData?.food ?? 0} kg
+  - Waste: ${carbonData?.waste ?? 0} kg
+  - Shopping: ${carbonData?.shopping ?? 0} kg
+  - **Total annual footprint**: ${carbonData?.total ?? 0} kg (Sustainable target is 3,500 kg CO2/year)
+- **Sustainability Goals**:
+  - Weekly Reduction Target: ${sustainabilityGoals?.weeklyReductionTarget ?? "N/A"} kg CO2
+  - Monthly CO2 Target: ${sustainabilityGoals?.monthlyCO2Target ?? "N/A"} kg CO2
+  - Target Reduction Level: ${sustainabilityGoals?.goalType ?? "N/A"}%
+- **Historical Trends**:
+  - Rolling Average: ${historicalTrendSummary?.rollingAverage ?? "N/A"} kg CO2
+  - Trend Improvement: ${historicalTrendSummary?.improvementPercentage ?? 0}% compared to initial baseline
+  - Total Submissions: ${historicalTrendSummary?.submissionsCount ?? 0} logs
+- **Active Daily Habits Checklist**:
+  ${habits?.map((h: { name: string; streak: number }) => `- ${h.name} (Streak: ${h.streak} days)`).join("\n  ")}
+
+When the user asks questions, refer directly to their data. Be specific, actionable, and encouraging. Estimate impact in kg CO2 saved or financial savings where possible. Maintain conversation context and memory. Respond in clean Markdown format with clear spacing, bold texts, and lists where appropriate.`;
+
+    const contents = (messages as ChatMessage[]).map((m) => ({
       role: m.role === "user" ? "user" : "model",
       parts: [{ text: m.content }],
     }));
@@ -83,13 +107,14 @@ export async function POST(req: NextRequest) {
         },
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 800,
+          maxOutputTokens: 1000,
         },
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json() as { error?: { message?: string } };
+      console.error("Gemini API error:", errorData);
       return NextResponse.json(
         { error: errorData.error?.message || "Gemini API error" },
         { status: response.status }
