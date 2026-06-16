@@ -6,6 +6,8 @@ export interface Badge {
   unlocked: boolean;
   unlockedAt?: string;
   criteria: string;
+  currentProgress: number;
+  targetProgress: number;
 }
 
 export const INITIAL_BADGES: Badge[] = [
@@ -16,6 +18,8 @@ export const INITIAL_BADGES: Badge[] = [
     iconName: "Leaf",
     unlocked: false,
     criteria: "Complete Onboarding",
+    currentProgress: 0,
+    targetProgress: 1,
   },
   {
     id: "green-explorer",
@@ -24,6 +28,8 @@ export const INITIAL_BADGES: Badge[] = [
     iconName: "Compass",
     unlocked: false,
     criteria: "Complete 3 habits",
+    currentProgress: 0,
+    targetProgress: 3,
   },
   {
     id: "climate-champion",
@@ -32,6 +38,8 @@ export const INITIAL_BADGES: Badge[] = [
     iconName: "Award",
     unlocked: false,
     criteria: "Carbon Score >= 80",
+    currentProgress: 0,
+    targetProgress: 80,
   },
   {
     id: "zero-waste-hero",
@@ -40,6 +48,8 @@ export const INITIAL_BADGES: Badge[] = [
     iconName: "Trash2",
     unlocked: false,
     criteria: "Recycle Always & Compost Yes",
+    currentProgress: 0,
+    targetProgress: 2,
   },
   {
     id: "public-transport-pro",
@@ -48,6 +58,8 @@ export const INITIAL_BADGES: Badge[] = [
     iconName: "Train",
     unlocked: false,
     criteria: "Transit travel >= 50km and Car travel = 0km",
+    currentProgress: 0,
+    targetProgress: 50,
   },
   {
     id: "sustainability-master",
@@ -56,5 +68,7 @@ export const INITIAL_BADGES: Badge[] = [
     iconName: "Zap",
     unlocked: false,
     criteria: "7-day streak & all weekly challenges completed",
+    currentProgress: 0,
+    targetProgress: 7,
   },
 ];

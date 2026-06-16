@@ -8,6 +8,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Button from "@/components/ui/Button";
 import { getHighestImpactActions, getLocalCoachResponse } from "@/utils/aiCoach";
+import { getEnvironmentalEquivalents } from "@/utils/carbonCalculations";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
 import {
@@ -51,6 +52,8 @@ import {
   LayoutDashboard,
   HelpCircle,
   CheckCircle,
+  Smartphone,
+  Home as HomeIcon,
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -65,10 +68,15 @@ export default function Dashboard() {
     badges,
     challenges,
     history,
+    historySubmissions,
+    rollingAverage,
+    improvementPercentage,
+    dataQuality,
     mounted,
     toggleHabit,
     incrementChallenge,
     updateGoals,
+    regenerateChallenges,
   } = useCarbon();
 
   const { toast } = useToast();
@@ -86,7 +94,7 @@ export default function Dashboard() {
   const [newMonthlyGoal, setNewMonthlyGoal] = useState(monthlyCO2Target);
 
   // Explainability Modal state
-  const [explainMetric, setExplainMetric] = useState<"score" | "emissions" | "equivalents" | null>(null);
+  const [explainMetric, setExplainMetric] = useState<"score" | "emissions" | "equivalents" | "goals" | "quality" | null>(null);
 
   // Initialize Chat with Welcome Message from AI Coach
   useEffect(() => {
@@ -180,10 +188,11 @@ export default function Dashboard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [...messages, { role: "user", content: userMsg }].slice(-6), // keep last 6 turns
+          messages: [...messages, { role: "user", content: userMsg }].slice(-6),
           carbonData: emissionsBreakdown,
           habits: habits,
           region: activeEntry.region,
+          history: historySubmissions.map((s) => ({ score: s.score, total: s.emissions.total, date: new Date(s.timestamp).toLocaleDateString() })),
         }),
       });
 
@@ -191,7 +200,6 @@ export default function Dashboard() {
         const data = await response.json();
         setMessages((prev) => [...prev, { role: "coach", content: data.reply }]);
       } else {
-        // Fallback to local rule engine if API key is not configured or errors out
         const localReply = getLocalCoachResponse(userMsg, activeEntry, emissionsBreakdown);
         setTimeout(() => {
           setMessages((prev) => [...prev, { role: "coach", content: localReply }]);
@@ -212,41 +220,77 @@ export default function Dashboard() {
   // Streaks calculation
   const highestStreak = Math.max(...habits.map((h) => h.streak), 0);
 
-  // Highest Impact recommendations
+  // Top 3 Highest Impact recommendations
   const impactActions = getHighestImpactActions(activeEntry, emissionsBreakdown);
 
-  // PDF print trigger
+  // Environmental Equivalents list
+  const equivalents = getEnvironmentalEquivalents(emissionsBreakdown.total);
+
+  // Printable layout trigger
   const handlePrint = () => {
     window.print();
   };
 
-  // Sustainability profile JSON exporter
-  const handleDownloadProfile = () => {
-    const profileData = {
-      platform: "CarbonWise AI",
-      generatedAt: new Date().toISOString(),
-      region: activeEntry.region,
-      householdSize: activeEntry.householdSize,
-      carbonBreakdown: emissionsBreakdown,
-      carbonScore: scoreInfo,
-      habits: habits,
-      badges: badges.filter((b) => b.unlocked),
-      challenges: challenges,
-    };
+  // Generate downloadable sustainability report
+  const handleDownloadReport = () => {
+    const reportContent = `
+# CarbonWise AI - Sustainability Report
+Report Generated: ${new Date().toLocaleDateString()}
+Region: ${activeEntry.region} | Household Size: ${activeEntry.householdSize}
 
-    const blob = new Blob([JSON.stringify(profileData, null, 2)], { type: "application/json" });
+## 📊 Footprint Summary
+- Annual Footprint: ${emissionsBreakdown.total.toLocaleString()} kg CO₂e
+- Monthly Footprint: ${Math.round(emissionsBreakdown.total / 12).toLocaleString()} kg CO₂e
+- Daily Footprint: ${Math.round(emissionsBreakdown.total / 365).toLocaleString()} kg CO₂e
+- Rolling Average: ${rollingAverage.toLocaleString()} kg CO₂e
+- Improvement: ${improvementPercentage}% reduction from first submission
+
+## 📈 Category Breakdown
+- Transportation: ${emissionsBreakdown.transport.toLocaleString()} kg CO₂
+- Electricity: ${emissionsBreakdown.electricity.toLocaleString()} kg CO₂
+- Food Habits: ${emissionsBreakdown.food.toLocaleString()} kg CO₂
+- Waste Management: ${emissionsBreakdown.waste.toLocaleString()} kg CO₂
+- Shopping Habits: ${emissionsBreakdown.shopping.toLocaleString()} kg CO₂
+
+- Best Performing Category: ${bestCategory.name} (${bestCategory.value.toLocaleString()} kg CO₂)
+- Highest Spikes Category: ${worstCategory.name} (${worstCategory.value.toLocaleString()} kg CO₂)
+
+## 🏆 Achievements & Habits
+- Carbon Score: ${scoreInfo.score}/100 (${scoreInfo.band})
+- Active Daily Habit Streak: ${highestStreak} Days
+- Unlocked Badges:
+${badges
+  .filter((b) => b.unlocked)
+  .map((b) => `  * ${b.title} - Unlocked on ${b.unlockedAt || "Today"}`)
+  .join("\n")}
+
+## 💡 Key AI Improvement Recommendations
+${impactActions
+  .map(
+    (act, i) =>
+      `${i + 1}. **${act.title}** (${act.difficulty} Difficulty | Timeline: ${act.timeline})
+   * ${act.description}
+   * Estimated carbon savings: ${act.co2SavedAnnual} kg CO₂ / year.`
+  )
+  .join("\n")}
+
+---
+Disclaimer: Carbon estimates are approximate and intended for awareness and educational purposes.
+`;
+
+    const blob = new Blob([reportContent], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `sustainability-profile-${new Date().toISOString().split("T")[0]}.json`;
+    link.download = `sustainability-report-${new Date().toISOString().split("T")[0]}.md`;
     link.click();
     URL.revokeObjectURL(url);
-    toast("Sustainability profile downloaded!", "success");
+    toast("Sustainability report downloaded!", "success");
   };
 
   // Render Badge Icon
   const renderBadgeIcon = (iconName: string, active: boolean) => {
-    const color = active ? "text-emerald-500" : "text-zinc-400";
+    const color = active ? "text-emerald-500 animate-pulse" : "text-zinc-400";
     switch (iconName) {
       case "Leaf":
         return <Leaf className={`h-6 w-6 ${color}`} />;
@@ -265,13 +309,34 @@ export default function Dashboard() {
     }
   };
 
+  const renderEquivalentIcon = (iconName: string) => {
+    switch (iconName) {
+      case "TreePine":
+        return <TreePine className="h-5 w-5 text-emerald-500" />;
+      case "Flame":
+        return <Flame className="h-5 w-5 text-orange-500" />;
+      case "Car":
+        return <Car className="h-5 w-5 text-emerald-600" />;
+      case "Smartphone":
+        return <Smartphone className="h-5 w-5 text-teal-500" />;
+      case "Zap":
+        return <Zap className="h-5 w-5 text-amber-500" />;
+      case "Home":
+        return <HomeIcon className="h-5 w-5 text-sky-500" />;
+      default:
+        return <Leaf className="h-5 w-5 text-emerald-500" />;
+    }
+  };
+
   const currentMonthlyCO2 = Math.round(emissionsBreakdown.total / 12);
+  const activeHabitsCount = habits.filter((h) => h.completedToday).length;
 
   return (
     <div className="flex flex-col min-h-screen">
       <Navbar />
 
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        
         {/* HEADER CONTROLS */}
         <section aria-label="Dashboard Overview" className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-6 no-print">
           <div className="text-center md:text-left space-y-1">
@@ -288,7 +353,7 @@ export default function Dashboard() {
             <Link href="/tracker">
               <Button variant="secondary" size="sm" className="flex items-center gap-1.5">
                 <ArrowRightLeft className="h-4 w-4" />
-                Recalculate Footprint
+                Log Custom Data
               </Button>
             </Link>
 
@@ -297,22 +362,74 @@ export default function Dashboard() {
               className="inline-flex items-center justify-center font-semibold rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 py-2.5 text-xs transition-colors duration-150"
             >
               <FileDown className="h-4 w-4 mr-1.5" />
-              Export Dashboard (PDF)
+              Export PDF View
             </button>
 
             <button
-              onClick={handleDownloadProfile}
+              onClick={handleDownloadReport}
               className="inline-flex items-center justify-center font-semibold rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 py-2.5 text-xs transition-colors duration-150"
             >
               <Download className="h-4 w-4 mr-1.5" />
-              Download Profile (.json)
+              Download Monthly Report
             </button>
           </div>
         </section>
 
+        {/* HERO STATISTICS SECTION (REAL METRICS) */}
+        <section aria-label="Hero Statistics" className="glass-card print-card p-6 sm:p-8 grid grid-cols-2 lg:grid-cols-4 gap-6 text-center divide-y lg:divide-y-0 lg:divide-x divide-zinc-200 dark:divide-zinc-800">
+          <div>
+            <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider block">Total CO₂ Saved</span>
+            <span className="text-3xl font-extrabold text-zinc-950 dark:text-zinc-50 tracking-tight block mt-1">
+              {improvementPercentage > 0 ? `${(rollingAverage * (improvementPercentage / 100) / 1000).toFixed(2)} tons` : "0.0 tons"}
+            </span>
+            <span className="text-[10px] text-zinc-400 block mt-0.5">Submissions-driven impact</span>
+          </div>
+
+          <div className="pt-4 lg:pt-0">
+            <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider block">Trees Offset Equivalent</span>
+            <span className="text-3xl font-extrabold text-zinc-950 dark:text-zinc-50 tracking-tight block mt-1">
+              {Math.round(emissionsBreakdown.total / 22)} trees
+            </span>
+            <span className="text-[10px] text-zinc-400 block mt-0.5">Annual absorption offset</span>
+          </div>
+
+          <div className="pt-4 lg:pt-0">
+            <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider block">Active Eco Habits</span>
+            <span className="text-3xl font-extrabold text-zinc-950 dark:text-zinc-50 tracking-tight block mt-1">
+              {activeHabitsCount} / {habits.length}
+            </span>
+            <span className="text-[10px] text-zinc-400 block mt-0.5">Completed today</span>
+          </div>
+
+          <div className="pt-4 lg:pt-0">
+            <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider block">Footprint Improvement</span>
+            <span className={`text-3xl font-extrabold tracking-tight block mt-1 ${improvementPercentage > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-400"}`}>
+              {improvementPercentage > 0 ? `-${improvementPercentage}%` : "0%"}
+            </span>
+            <span className="text-[10px] text-zinc-400 block mt-0.5">Compared to baseline</span>
+          </div>
+        </section>
+
+        {/* DATA QUALITY EMPTY STATES */}
+        {dataQuality.label === "Approximation" && (
+          <section aria-label="Data Quality Empty State" className="p-6 rounded-3xl bg-amber-500/5 border border-amber-500/10 flex flex-col sm:flex-row items-center justify-between gap-4 no-print">
+            <div className="space-y-1 text-center sm:text-left">
+              <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">Get More Accurate Insights</span>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                You are currently viewing estimates based on region default onboarding presets. Log your specific energy and travel numbers for a high confidence dashboard.
+              </p>
+            </div>
+            <Link href="/tracker">
+              <Button size="sm" variant="accent" className="whitespace-nowrap">
+                Complete Tracker Logs
+              </Button>
+            </Link>
+          </section>
+        )}
+
         {/* ROW 1: SUMMARY CARDS GRID */}
         <section aria-label="Footprint Summary Cards" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Card 1: Carbon Score */}
+          {/* Score */}
           <div className="glass-card print-card p-6 flex flex-col justify-between relative overflow-hidden">
             <div className="flex justify-between items-start">
               <div className="space-y-1">
@@ -337,7 +454,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Card 2: Annual Emissions */}
+          {/* Annual Footprint */}
           <div className="glass-card print-card p-6 flex flex-col justify-between relative overflow-hidden">
             <div className="flex justify-between items-start">
               <div className="space-y-1">
@@ -349,7 +466,7 @@ export default function Dashboard() {
               <button
                 onClick={() => setExplainMetric("emissions")}
                 className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 focus:outline-none no-print"
-                aria-label="Explain Footprint calculations"
+                aria-label="Explain Footprint math"
               >
                 <HelpCircle className="h-4 w-4" />
               </button>
@@ -357,16 +474,16 @@ export default function Dashboard() {
             <div className="mt-4 grid grid-cols-2 gap-2 text-center text-xs divide-x divide-zinc-200 dark:divide-zinc-800">
               <div>
                 <span className="text-zinc-500 block text-[9px] uppercase font-semibold">Monthly Avg</span>
-                <span className="font-bold text-zinc-800 dark:text-zinc-200 block mt-0.5">{Math.round(emissionsBreakdown.total / 12).toLocaleString()} kg</span>
+                <span className="font-bold text-zinc-800 dark:text-zinc-200 block mt-0.5">{currentMonthlyCO2.toLocaleString()} kg</span>
               </div>
               <div>
-                <span className="text-zinc-500 block text-[9px] uppercase font-semibold">Daily Avg</span>
-                <span className="font-bold text-zinc-800 dark:text-zinc-200 block mt-0.5">{Math.round(emissionsBreakdown.total / 365).toLocaleString()} kg</span>
+                <span className="text-zinc-500 block text-[9px] uppercase font-semibold">Rolling Avg</span>
+                <span className="font-bold text-zinc-800 dark:text-zinc-200 block mt-0.5">{rollingAverage.toLocaleString()} kg</span>
               </div>
             </div>
           </div>
 
-          {/* Card 3: Best Category */}
+          {/* Best Category */}
           <div className="glass-card print-card p-6 flex flex-col justify-between relative overflow-hidden">
             <div className="flex justify-between items-start">
               <div className="space-y-1">
@@ -385,7 +502,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Card 4: Worst Category */}
+          {/* Worst Category */}
           <div className="glass-card print-card p-6 flex flex-col justify-between relative overflow-hidden">
             <div className="flex justify-between items-start">
               <div className="space-y-1">
@@ -405,51 +522,86 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* HIGHEST IMPACT & EQUIVALENTS */}
-        <section aria-label="Emissions Reductions Insights" className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Highest Impact Actions Checklist */}
+        {/* DATA QUALITY INDICATOR */}
+        <section aria-label="Data Quality Panel" className="glass-card print-card p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-zinc-200/60 dark:border-zinc-800/40">
+          <div className="flex gap-3 items-center">
+            <div className={`px-2.5 py-1 rounded-md border text-xs font-bold uppercase ${dataQuality.bgClass} ${dataQuality.colorClass}`}>
+              {dataQuality.label}
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+              {dataQuality.description}
+            </p>
+          </div>
+          <button
+            onClick={() => setExplainMetric("quality")}
+            className="text-xs font-bold text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 focus:outline-none flex items-center gap-1 no-print"
+          >
+            <Info className="h-3.5 w-3.5" />
+            Learn about Data Confidence
+          </button>
+        </section>
+
+        {/* HIGH IMPACT RECOMMENDATIONS & EQUIVALENTS */}
+        <section aria-label="Sustainability Insights" className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Top 3 Highest Impact Actions */}
           <div className="glass-card print-card lg:col-span-7 p-6 sm:p-8 space-y-6">
             <div className="space-y-1">
               <h3 className="font-extrabold text-lg text-zinc-950 dark:text-zinc-50 flex items-center gap-2">
                 <TrendingDown className="h-5 w-5 text-emerald-500" />
-                Highest Impact Reduction Targets
+                Top 3 Highest Impact Actions
               </h3>
               <p className="text-zinc-500 dark:text-zinc-400 text-xs">
-                These behaviors represent your largest carbon saving points, calculated from your profile.
+                Dynamically calculated behavioral shifts ranked by estimated annual savings.
               </p>
             </div>
 
             <div className="grid grid-cols-1 gap-4">
-              {impactActions.slice(0, 2).map((act) => {
+              {impactActions.map((act) => {
                 return (
                   <div
                     key={act.title}
-                    className="p-4 rounded-2xl border bg-zinc-50/50 dark:bg-zinc-900/30 border-zinc-200/50 dark:border-zinc-800/40 flex items-start gap-4"
+                    className="p-4 rounded-2xl border bg-zinc-50/50 dark:bg-zinc-900/30 border-zinc-200/50 dark:border-zinc-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                   >
-                    <div className="bg-emerald-500/10 text-emerald-600 p-2.5 rounded-xl shrink-0 mt-0.5">
-                      <Leaf className="h-5 w-5" />
-                    </div>
-                    <div className="flex-grow space-y-1">
-                      <div className="flex items-center justify-between flex-wrap gap-1">
-                        <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{act.title}</span>
-                        <span className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/10 whitespace-nowrap">
-                          -{act.co2SavedAnnual} kg / yr
-                        </span>
+                    <div className="flex items-start gap-3.5">
+                      <div className="bg-emerald-500/10 text-emerald-600 p-2.5 rounded-xl shrink-0 mt-0.5">
+                        <Leaf className="h-5 w-5" />
                       </div>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal">{act.description}</p>
+                      <div className="space-y-1">
+                        <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100 block">{act.title}</span>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">{act.description}</p>
+                        {/* Tags */}
+                        <div className="flex flex-wrap gap-1.5 pt-1.5 no-print">
+                          <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
+                            Difficulty: {act.difficulty}
+                          </span>
+                          <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
+                            Timeline: {act.timeline}
+                          </span>
+                          <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
+                            Confidence: {act.confidence}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="sm:text-right shrink-0 mt-2 sm:mt-0 bg-emerald-500/10 border border-emerald-500/10 px-3 py-1.5 rounded-xl text-center">
+                      <span className="text-[9px] uppercase font-bold text-zinc-400 block tracking-wider">Est. Savings</span>
+                      <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
+                        -{act.co2SavedAnnual} kg / yr
+                      </span>
                     </div>
                   </div>
                 );
               })}
               {impactActions.length === 0 && (
                 <div className="text-center py-6 text-zinc-400 text-sm">
-                  No actions suggested. You have achieved an excellent carbon score!
+                  Excellent! Your carbon score is optimal. No high impact savings suggestions are needed.
                 </div>
               )}
             </div>
           </div>
 
-          {/* Trees Equivalent Visualizer */}
+          {/* Relatable Environmental Equivalents */}
           <div className="glass-card print-card lg:col-span-5 p-6 sm:p-8 flex flex-col justify-between space-y-6">
             <div className="space-y-1 flex justify-between items-start">
               <div>
@@ -458,38 +610,31 @@ export default function Dashboard() {
                   Eco-Equivalents
                 </h3>
                 <p className="text-zinc-500 dark:text-zinc-400 text-xs">
-                  What your annual emissions represent in ecological units.
+                  Your carbon footprint mapped to common ecological counterparts.
                 </p>
               </div>
               <button
                 onClick={() => setExplainMetric("equivalents")}
                 className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 focus:outline-none no-print"
-                aria-label="Explain Equivalents Calculations"
+                aria-label="Explain equivalents calculations"
               >
                 <HelpCircle className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-grow justify-center">
-              <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200/40 dark:border-zinc-800/40 text-center flex flex-col items-center justify-center space-y-1.5">
-                <span className="p-2.5 rounded-full bg-emerald-500/10 text-emerald-600">
-                  <TreePine className="h-5 w-5" />
-                </span>
-                <span className="text-xs text-zinc-400 font-medium">Seedlings Planted</span>
-                <span className="text-lg font-bold text-zinc-800 dark:text-zinc-200">
-                  {Math.round(emissionsBreakdown.total / 22)} trees
-                </span>
-              </div>
-
-              <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200/40 dark:border-zinc-800/40 text-center flex flex-col items-center justify-center space-y-1.5">
-                <span className="p-2.5 rounded-full bg-orange-500/10 text-orange-600">
-                  <Flame className="h-5 w-5" />
-                </span>
-                <span className="text-xs text-zinc-400 font-medium">Gallons Gasoline</span>
-                <span className="text-lg font-bold text-zinc-800 dark:text-zinc-200">
-                  {Math.round(emissionsBreakdown.total / 8.88).toLocaleString()} gal
-                </span>
-              </div>
+            <div className="grid grid-cols-2 gap-3 flex-grow overflow-y-auto max-h-[260px] pr-0.5">
+              {equivalents.map((eq) => (
+                <div
+                  key={eq.id}
+                  className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200/40 dark:border-zinc-800/40 text-center flex flex-col items-center justify-center space-y-1"
+                >
+                  <span className="p-2 rounded-full bg-zinc-100 dark:bg-zinc-800">
+                    {renderEquivalentIcon(eq.iconName)}
+                  </span>
+                  <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">{eq.label}</span>
+                  <span className="text-sm font-extrabold text-zinc-850 dark:text-zinc-200">{eq.value}</span>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -503,35 +648,35 @@ export default function Dashboard() {
                 Carbon Footprint Analytics
               </h3>
               <p className="text-zinc-500 dark:text-zinc-400 text-xs">
-                Review emissions by category division or view your 6-month historical trend.
+                Visualize category splits or rolling monthly progress curves.
               </p>
             </div>
 
             <div className="flex bg-zinc-100 dark:bg-zinc-900 rounded-xl p-1">
               <button
                 onClick={() => setActiveChartTab("pie")}
-                className={`px-4.5 py-2 rounded-lg text-xs font-semibold transition-all duration-150 focus:outline-none ${
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 focus:outline-none ${
                   activeChartTab === "pie"
                     ? "bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 shadow-sm"
                     : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
                 }`}
               >
-                Categories
+                Category Divisions
               </button>
               <button
                 onClick={() => setActiveChartTab("trend")}
-                className={`px-4.5 py-2 rounded-lg text-xs font-semibold transition-all duration-150 focus:outline-none ${
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 focus:outline-none ${
                   activeChartTab === "trend"
                     ? "bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 shadow-sm"
                     : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
                 }`}
               >
-                Historical Trend
+                Rolling History
               </button>
             </div>
           </div>
 
-          <div className="h-[350px] w-full flex items-center justify-center">
+          <div className="h-[320px] w-full flex items-center justify-center">
             {activeChartTab === "pie" ? (
               pieData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
@@ -541,7 +686,7 @@ export default function Dashboard() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      outerRadius={105}
+                      outerRadius={95}
                       fill="#8884d8"
                       dataKey="value"
                       label={({ name, percent }: { name?: string; percent?: number }) => `${name || ""} ${(typeof percent === "number" ? percent * 100 : 0).toFixed(0)}%`}
@@ -577,6 +722,77 @@ export default function Dashboard() {
           </div>
         </section>
 
+        {/* PERSONALIZED ROADMAP TIMELINE */}
+        <section aria-label="Sustainability Roadmap" className="glass-card print-card p-6 sm:p-8 space-y-6">
+          <div className="space-y-1">
+            <h3 className="font-extrabold text-lg text-zinc-950 dark:text-zinc-50 flex items-center gap-2">
+              <Target className="h-5 w-5 text-emerald-500" />
+              Sustainability Action Roadmap
+            </h3>
+            <p className="text-zinc-500 dark:text-zinc-400 text-xs">
+              Personalized roadmap updated dynamically based on your commute, region, and logs.
+            </p>
+          </div>
+
+          <div className="relative border-l-2 border-zinc-200 dark:border-zinc-800 ml-4 pl-6 space-y-6 text-xs sm:text-sm">
+            {/* Today */}
+            <div className="relative">
+              <span className="absolute left-[-31px] top-0.5 bg-emerald-600 text-white rounded-full p-1 border-4 border-white dark:border-zinc-950">
+                <CheckCircle className="h-3 w-3" />
+              </span>
+              <div className="space-y-1">
+                <h4 className="font-bold text-zinc-900 dark:text-zinc-100">Today: Active Habits</h4>
+                <p className="text-zinc-500 dark:text-zinc-400 leading-normal">
+                  Log your daily actions on the habit board. Completing habits contributes to streak multipliers.
+                </p>
+                <div className="text-[10px] font-bold text-emerald-600">Progress: {activeHabitsCount} completed today</div>
+              </div>
+            </div>
+
+            {/* Week */}
+            <div className="relative">
+              <span className="absolute left-[-31px] top-0.5 bg-emerald-500 text-white rounded-full p-1 border-4 border-white dark:border-zinc-950">
+                <Trophy className="h-3 w-3" />
+              </span>
+              <div className="space-y-1">
+                <h4 className="font-bold text-zinc-900 dark:text-zinc-100">This Week: Weekly Challenges</h4>
+                <p className="text-zinc-500 dark:text-zinc-400 leading-normal">
+                  Complete adapted weekly challenges targeting your weakest category (**{worstCategory.name}**).
+                </p>
+                <div className="text-[10px] font-bold text-emerald-600">
+                  Active Challenges: {challenges.filter((c) => c.completed).length} / {challenges.length} completed
+                </div>
+              </div>
+            </div>
+
+            {/* Month */}
+            <div className="relative">
+              <span className="absolute left-[-31px] top-0.5 bg-teal-500 text-white rounded-full p-1 border-4 border-white dark:border-zinc-950">
+                <CalendarRange className="h-3 w-3" />
+              </span>
+              <div className="space-y-1">
+                <h4 className="font-bold text-zinc-900 dark:text-zinc-100">This Month: Energy Optimization</h4>
+                <p className="text-zinc-500 dark:text-zinc-400 leading-normal">
+                  Keep average electricity below **{monthlyCO2Target} kg CO₂** monthly limit. Unplug idle appliances.
+                </p>
+              </div>
+            </div>
+
+            {/* Long term */}
+            <div className="relative">
+              <span className="absolute left-[-31px] top-0.5 bg-amber-500 text-white rounded-full p-1 border-4 border-white dark:border-zinc-950">
+                <Zap className="h-3 w-3" />
+              </span>
+              <div className="space-y-1">
+                <h4 className="font-bold text-zinc-900 dark:text-zinc-100">Long-Term: Structural Adjustments</h4>
+                <p className="text-zinc-500 dark:text-zinc-400 leading-normal">
+                  Consider home ownership efficiency projects, shifting to renewable energy plans, or offsetting long flights.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* BOTTOM SECTION: AI COACH & GOALS */}
         <section aria-label="AI Coach and Goals Panel" className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* AI SUSTAINABILITY COACH */}
@@ -588,13 +804,12 @@ export default function Dashboard() {
                   Gemini Sustainability Coach
                 </h3>
                 <p className="text-zinc-500 dark:text-zinc-400 text-xs">
-                  Ask questions or request reduction plans tailored to your carbon inputs.
+                  Ask budget questions or request custom reduction roadmaps.
                 </p>
               </div>
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
             </div>
 
-            {/* Message log wrapper */}
             <div className="flex-grow overflow-y-auto max-h-[300px] py-4 space-y-4 my-2 pr-1.5 scrollbar-thin scrollbar-thumb-zinc-200 dark:scrollbar-thumb-zinc-800">
               {messages.map((m, index) => {
                 const isCoach = m.role === "coach";
@@ -636,13 +851,13 @@ export default function Dashboard() {
               <div ref={chatEndRef} />
             </div>
 
-            {/* Quick suggested prompt buttons */}
+            {/* Suggested prompts */}
             <div className="flex flex-wrap gap-1.5 py-3 border-t border-zinc-100 dark:border-zinc-800/80 no-print">
               {[
-                "Explain my carbon score",
-                "How can I reduce transport emissions?",
-                "Tips for food reduction",
-                "Waste composting tips",
+                "Why is transportation my biggest emitter?",
+                "Give me a 30-day improvement plan.",
+                "How to cut energy without spending money?",
+                "Suggest realistic changes for a college student.",
               ].map((prompt) => (
                 <button
                   key={prompt}
@@ -654,7 +869,6 @@ export default function Dashboard() {
               ))}
             </div>
 
-            {/* Chat Input form */}
             <form onSubmit={handleSendMessage} className="flex gap-2 items-center mt-2 no-print">
               <input
                 type="text"
@@ -694,7 +908,7 @@ export default function Dashboard() {
                 Sustainability Goals
               </h3>
               <p className="text-zinc-500 dark:text-zinc-400 text-xs">
-                Keep your current carbon emissions below your defined monthly and weekly limit targets.
+                Emissions vs monthly limit and weekly targets.
               </p>
             </div>
 
@@ -858,7 +1072,6 @@ export default function Dashboard() {
               ))}
             </div>
 
-            {/* Print Friendly habits list */}
             <div className="hidden print:block">
               <ul className="space-y-2 text-xs">
                 {habits.map((h) => (
@@ -874,12 +1087,23 @@ export default function Dashboard() {
           {/* WEEKLY ECO CHALLENGES */}
           <div className="glass-card print-card lg:col-span-5 p-6 sm:p-8 space-y-6">
             <div className="space-y-1">
-              <h3 className="font-extrabold text-lg text-zinc-950 dark:text-zinc-50 flex items-center gap-2">
-                <Trophy className="h-5 w-5 text-emerald-500" />
+              <div className="flex items-center justify-between no-print">
+                <h3 className="font-extrabold text-lg text-zinc-950 dark:text-zinc-50 flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-emerald-500" />
+                  Weekly Challenges
+                </h3>
+                <button
+                  onClick={regenerateChallenges}
+                  className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline focus:outline-none"
+                >
+                  Regenerate
+                </button>
+              </div>
+              <h3 className="hidden print:block font-extrabold text-lg text-zinc-950 dark:text-zinc-50">
                 Weekly Eco Challenges
               </h3>
               <p className="text-zinc-500 dark:text-zinc-400 text-xs">
-                Participate in weekly sustainability tasks to accelerate your carbon reductions.
+                Adapted weekly tasks targeting your weakest category (**{worstCategory.name}**).
               </p>
             </div>
 
@@ -895,7 +1119,12 @@ export default function Dashboard() {
                 >
                   <div className="flex justify-between items-start gap-2">
                     <div className="space-y-0.5">
-                      <h4 className="font-bold text-zinc-900 dark:text-zinc-100">{chal.title}</h4>
+                      <h4 className="font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                        {chal.title}
+                        <span className="text-[9px] font-semibold text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                          -{chal.co2Saved} kg CO₂
+                        </span>
+                      </h4>
                       <p className="text-[10px] text-zinc-400 font-medium leading-normal">{chal.description}</p>
                     </div>
 
@@ -932,7 +1161,7 @@ export default function Dashboard() {
                         {chal.current} / {chal.target}
                       </span>
                     </div>
-                    <div className="w-full h-1.5 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/40 dark:border-zinc-800/40 rounded-full overflow-hidden">
+                    <div className="w-full h-1.5 bg-zinc-100 dark:bg-zinc-900 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-gradient-to-r from-emerald-500 to-lime-500 rounded-full transition-all duration-300"
                         style={{ width: `${(chal.current / chal.target) * 100}%` }}
@@ -950,10 +1179,10 @@ export default function Dashboard() {
           <div className="space-y-1">
             <h3 className="font-extrabold text-lg text-zinc-950 dark:text-zinc-50 flex items-center gap-2">
               <Award className="h-5 w-5 text-emerald-500" />
-              Sustainability Milestones & Badges
+              Sustainability Milestones & Badge Progress
             </h3>
             <p className="text-zinc-500 dark:text-zinc-400 text-xs">
-              Milestone achievements unlocked by completing onboarding, lowering emissions, and maintaining habit streaks.
+              Check progress numbers and unlocked states of platform sustainability milestones.
             </p>
           </div>
 
@@ -964,17 +1193,32 @@ export default function Dashboard() {
                 className={`p-4 rounded-2xl border text-center flex flex-col items-center justify-between gap-3 transition-all duration-300 ${
                   b.unlocked
                     ? "border-emerald-500 bg-emerald-500/5 shadow-md shadow-emerald-500/5"
-                    : "border-zinc-200 dark:border-zinc-800 opacity-50 grayscale"
+                    : "border-zinc-200 dark:border-zinc-800 opacity-70"
                 }`}
               >
                 <div className={`p-3 rounded-full ${b.unlocked ? "bg-emerald-500/10" : "bg-zinc-100 dark:bg-zinc-900"}`}>
                   {renderBadgeIcon(b.iconName, b.unlocked)}
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 w-full">
                   <h4 className="font-bold text-xs sm:text-sm text-zinc-900 dark:text-zinc-100">{b.title}</h4>
-                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-normal line-clamp-3">
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-normal line-clamp-2">
                     {b.description}
                   </p>
+                  
+                  {/* Progress Indicator */}
+                  {!b.unlocked && (
+                    <div className="space-y-1 pt-1.5">
+                      <div className="w-full h-1 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500"
+                          style={{ width: `${Math.min(100, (b.currentProgress / b.targetProgress) * 100)}%` }}
+                        />
+                      </div>
+                      <span className="text-[9px] text-zinc-400 font-semibold block text-center">
+                        {Math.round(b.currentProgress)} / {b.targetProgress}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <span className="text-[9px] uppercase tracking-wider font-extrabold block text-zinc-400">
@@ -983,6 +1227,13 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
+        </section>
+
+        {/* TRUST & TRANSPARENCY DISCLAIMER */}
+        <section aria-label="Disclaimer" className="text-center max-w-2xl mx-auto py-4 no-print">
+          <p className="text-[10px] sm:text-xs text-zinc-400 dark:text-zinc-500 leading-normal italic">
+            Disclaimer: Carbon estimates are approximate and intended for awareness and educational purposes. Actual emissions vary depending on local infrastructure, energy sources, and personal circumstances.
+          </p>
         </section>
 
         {/* METRICS EXPLAINER MODAL (EXPLAINABILITY) */}
@@ -1046,6 +1297,21 @@ export default function Dashboard() {
                     </p>
                     <p className="text-xs sm:text-sm text-zinc-500 leading-relaxed">
                       <strong>Gallons of Gasoline:</strong> Combustion of one gallon of standard motor fuel releases roughly <strong>8.887 kg CO₂</strong>. This illustrates your footprint in terms of fuel combusted.
+                    </p>
+                  </div>
+                )}
+
+                {explainMetric === "quality" && (
+                  <div className="space-y-4">
+                    <h3 className="font-bold text-lg text-zinc-950 dark:text-zinc-50 flex items-center gap-2">
+                      <Info className="h-5 w-5 text-emerald-500" />
+                      About Data Confidence
+                    </h3>
+                    <p className="text-xs sm:text-sm text-zinc-500 leading-relaxed">
+                      <strong>High Confidence:</strong> Indicates you have entered custom data for transportation, food habits, and electricity usage, ensuring highly specific mathematical outcomes.
+                    </p>
+                    <p className="text-xs sm:text-sm text-zinc-500 leading-relaxed">
+                      <strong>Moderate Estimate / Approximation:</strong> Indicates some categories are relying on onboarding default seeds or regional standard baseline assumptions. Open the tracker to log specific details to upgrade confidence.
                     </p>
                   </div>
                 )}

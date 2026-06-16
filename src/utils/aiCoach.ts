@@ -6,94 +6,102 @@ export interface CoachSuggestion {
   title: string;
   description: string;
   co2SavedAnnual: number;
+  difficulty: "Easy" | "Medium" | "Hard";
+  timeline: "Immediate" | "1-3 months" | "6+ months";
+  confidence: "High" | "Medium" | "Estimate";
 }
 
-// Generate the "Highest Impact Actions" checklist for the dashboard
+// Generate the "Top 3 Highest Impact Actions" checklist for the dashboard
 export function getHighestImpactActions(
   entry: CarbonEntry,
   emissions: EmissionsBreakdown
 ): CoachSuggestion[] {
   const suggestions: CoachSuggestion[] = [];
 
-  // 1. Check transportation leverage (Car travel)
-  if (entry.transport.car > 20) {
+  // 1. Car Switch (High leverage)
+  if (entry.transport.car > 0) {
     const weeklyKm = entry.transport.car;
-    // Estimate potential: Replacing 20% of weekly car mileage with active/public transit
-    const potentialSaving = Math.round(weeklyKm * 0.2 * 0.180 * 52); // 20% * 0.180kg/km * 52
-    if (potentialSaving > 50) {
+    // Replacing 25% of car travel with public/active transport
+    const potentialSaving = Math.round(weeklyKm * 0.25 * 0.180 * 52);
+    if (potentialSaving > 20) {
       suggestions.push({
         category: "transport",
-        title: "Ditch the Car for 20% of Trips",
-        description: `Replacing 20% of your weekly car travel (${Math.round(weeklyKm * 0.2)} km) with public transit or walking will significantly lower vehicle exhaust.`,
+        title: "Ditch the Car for 25% of Trips",
+        description: `Replace 25% of your driving (${Math.round(weeklyKm * 0.25)} km/week) with cycling, walking, or public transit.`,
         co2SavedAnnual: potentialSaving,
+        difficulty: "Medium",
+        timeline: "1-3 months",
+        confidence: "High",
       });
     }
   }
 
-  // 2. Check electricity leverage
-  if (entry.electricity > 100) {
-    // Estimate potential: Lowering electricity usage by 15% via efficiency
-    const potentialSaving = Math.round(emissions.electricity * 0.15);
-    if (potentialSaving > 40) {
+  // 2. Reduce Electricity by 10%
+  if (entry.electricity > 0) {
+    const potentialSaving = Math.round(emissions.electricity * 0.10);
+    if (potentialSaving > 20) {
       suggestions.push({
         category: "energy",
-        title: "Energy Efficiency Audit",
-        description: "Reducing home electricity by 15% (unplugging idle appliances, switching to LEDs, eco thermostats) makes a direct power grid impact.",
+        title: "Reduce Electricity Usage by 10%",
+        description: "Turn off idle devices, adjust heating/cooling, and choose energy-star appliances.",
         co2SavedAnnual: potentialSaving,
+        difficulty: "Easy",
+        timeline: "Immediate",
+        confidence: "Medium",
       });
     }
   }
 
-  // 3. Check food diet leverage
+  // 3. Shift Diet (Meat heavy / Mixed)
   if (entry.food === "meat-heavy" || entry.food === "mixed") {
-    // Shifting to vegetarian 2 days a week
-    // Meat heavy (7.2kg) to vegetarian (2.0kg) = 5.2kg difference.
-    // Mixed (4.7kg) to vegetarian (2.0kg) = 2.7kg difference.
-    const diff = entry.food === "meat-heavy" ? 5.2 : 2.7;
-    const potentialSaving = Math.round(diff * (2 / 7) * 365);
+    // Replace 3 meat meals per week (equivalent to ~3/21 or 15% of food)
+    const factor = entry.food === "meat-heavy" ? 5.2 : 2.7; // saving vs vegetarian
+    const potentialSaving = Math.round(factor * (3 / 7) * 365);
     suggestions.push({
       category: "food",
-      title: "Introduce Meatless Days",
-      description: "Substituting meat meals with vegetarian or vegan alternatives twice a week cuts agricultural supply chain emissions.",
+      title: "Replace 3 Meat Meals per Week",
+      description: "Introduce plant-based or vegetarian lunches three times a week.",
       co2SavedAnnual: potentialSaving,
+      difficulty: "Easy",
+      timeline: "Immediate",
+      confidence: "High",
     });
   }
 
-  // 4. Check waste leverage
+  // 4. Waste Composting & Recycling
   if (entry.waste.recyclingFrequency !== "always" || !entry.waste.composting) {
     let potentialSaving = 0;
-    let description = "Upgrading habits can lower trash decay emissions: ";
-    if (entry.waste.recyclingFrequency !== "always") {
-      potentialSaving += 100;
-      description += "Recycle all papers/containers. ";
-    }
-    if (!entry.waste.composting) {
-      potentialSaving += 100;
-      description += "Begin home composting organic matter to avoid landfill methane.";
-    }
-    if (potentialSaving > 0) {
-      suggestions.push({
-        category: "waste",
-        title: "Optimize Waste Management",
-        description,
-        co2SavedAnnual: potentialSaving,
-      });
-    }
-  }
+    const description = "Begin separating paper/plastic recycling and organic composting.";
+    if (entry.waste.recyclingFrequency !== "always") potentialSaving += 100;
+    if (!entry.waste.composting) potentialSaving += 100;
 
-  // 5. Check shopping leverage
-  if (entry.shopping === "high" || entry.shopping === "medium") {
-    const savings = entry.shopping === "high" ? 550 : 300; // shifting high to medium, or medium to low
     suggestions.push({
-      category: "shopping",
-      title: "Conscious Consumer Shift",
-      description: "Reducing monthly purchases by choosing refurbished electronics, pre-owned clothes, and repairing household items.",
-      co2SavedAnnual: savings,
+      category: "waste",
+      title: "Recycle and Compost Waste",
+      description,
+      co2SavedAnnual: potentialSaving,
+      difficulty: "Medium",
+      timeline: "1-3 months",
+      confidence: "Estimate",
     });
   }
 
-  // Sort by highest potential savings
-  return suggestions.sort((a, b) => b.co2SavedAnnual - a.co2SavedAnnual);
+  // 5. Shopping Habit reduction
+  if (entry.shopping === "high" || entry.shopping === "medium") {
+    const savings = entry.shopping === "high" ? 550 : 300;
+    suggestions.push({
+      category: "shopping",
+      title: "Reduce Buying Frequency by 20%",
+      description: "Repair existing products, swap clothes, and choose secondhand options.",
+      co2SavedAnnual: savings,
+      difficulty: "Medium",
+      timeline: "1-3 months",
+      confidence: "Estimate",
+    });
+  }
+
+  // Sort by highest potential savings and return top 3
+  return suggestions.sort((a, b) => b.co2SavedAnnual - a.co2SavedAnnual).slice(0, 3);
 }
 
 // Local chatbot response engine for fallback
@@ -110,13 +118,13 @@ export function getLocalCoachResponse(
     return `### 🚗 Transportation Insights
 Your current transport emissions are **${emissions.transport.toLocaleString()} kg CO₂/year**.
 ${
-  carKms > 50
-    ? `- **Private Driving:** You log **${carKms} km/week** by car. Replacing even 10% of this with walking or train transit would save roughly **${Math.round(carKms * 0.1 * 0.180 * 52)} kg CO₂** annually.\n`
+  carKms > 0
+    ? `- **Driving Impact:** You log **${carKms} km/week** by car. Replacing 25% of this with public transit or walking would save roughly **${Math.round(carKms * 0.25 * 0.180 * 52)} kg CO₂** annually.\n`
     : ""
 }
 ${
-  flightKms > 1000
-    ? `- **Aviation Footprint:** You travel **${flightKms.toLocaleString()} km/year** by flight. Air travel has a massive intensity per km (${(0.250).toFixed(3)} kg/km). Offsetting or substituting long flights with rail can drastically cut this.\n`
+  flightKms > 0
+    ? `- **Aviation Impact:** You travel **${flightKms.toLocaleString()} km/year** by flight. Aviation has a massive footprint (${(0.250).toFixed(3)} kg/km). Offsetting flights or choosing trains when traveling locally cuts this footprint.\n`
     : ""
 }
 - **Eco Habits:** Try checking off the *'Used bicycle instead of car'* or *'Walked for short trips'* habits daily on the dashboard to build streaks!`;
@@ -127,23 +135,23 @@ ${
     const regionText = entry.region === "US" ? "United States" : entry.region === "EU" ? "European Union" : "Global Grid";
     return `### ⚡ Electricity & Energy Insights
 Your energy footprint is **${emissions.electricity.toLocaleString()} kg CO₂/year** based on **${kwh} kWh/month** in the **${regionText}** region.
-- **Regional Grid Intensity:** Your region's emissions factor is **${(emissions.electricity > 0 ? (emissions.electricity * entry.householdSize / (kwh * 12)).toFixed(3) : "0.400")} kg CO₂/kWh**.
+- **Grid Carbon Intensity:** Your region's emissions factor is **${(emissions.electricity > 0 ? (emissions.electricity * entry.householdSize / (kwh * 12)).toFixed(3) : "0.400")} kg CO₂/kWh**.
 - **Action Plan:**
-  1. Unplug vampire power devices (chargers, consoles) when not in use.
-  2. Switch to LED lightbulbs, which use 75% less energy.
+  1. Unplug vampire appliances (consoles, TVs) when not in use.
+  2. Switch to LED bulbs, which consume 75% less energy.
   3. Lower your thermostat by 1-2 degrees in winter or raise it in summer.
-- **Shared Footprint:** Since your household size is **${entry.householdSize}**, you save emissions collectively. Keep it up!`;
+- **Household Share:** Since your household size is **${entry.householdSize}**, you share baseload emissions. Good job keeping grid impacts down!`;
   }
 
   if (query.includes("food") || query.includes("diet") || query.includes("meat") || query.includes("vegan")) {
     const diet = entry.food;
     let tip = "";
     if (diet === "meat-heavy") {
-      tip = "Your diet is **Meat-Heavy**, emitting ~7.2 kg CO₂/day. Shifting to vegetarian twice a week saves over **500 kg CO₂/year**!";
+      tip = "Your diet is **Meat-Heavy** (~7.2 kg CO₂/day). Shifting to vegetarian three times a week saves over **500 kg CO₂/year**!";
     } else if (diet === "mixed") {
-      tip = "Your diet is **Mixed**, emitting ~4.7 kg CO₂/day. Introducing vegetarian or vegan meals 2-3 times weekly will save roughly **280 kg CO₂/year**.";
+      tip = "Your diet is **Mixed** (~4.7 kg CO₂/day). Substituting meat meals with vegetarian or vegan alternatives 3 times weekly saves **280 kg CO₂/year**.";
     } else {
-      tip = `Your diet is **${diet}**, which is highly eco-friendly! You are saving significant carbon compared to average mixed diets (~1.7 tons saved annually).`;
+      tip = `Your diet is **${diet}**, which is highly eco-friendly! You save significant carbon compared to average mixed diets (~1.7 tons saved annually).`;
     }
     return `### 🍏 Food & Dietary Insights
 Your annual food-related emissions total **${emissions.food.toLocaleString()} kg CO₂**.
@@ -171,7 +179,7 @@ Based on your carbon profile, here is a custom analysis of your footprint (**${e
 
 ${
   actions.length > 0
-    ? `#### Highest Impact Action Recommended:
+    ? `#### Top Impact Action Suggested:
 **${actions[0].title}**
 *${actions[0].description}*
 👉 *Potential annual carbon savings: **${actions[0].co2SavedAnnual} kg CO₂/year***`

@@ -5,7 +5,7 @@ export interface Challenge {
   target: number;
   current: number;
   completed: boolean;
-  category: "transport" | "energy" | "waste" | "food" | "general";
+  category: "transport" | "energy" | "waste" | "food" | "general" | "shopping";
   co2Saved: number; // kg saved by completing this challenge
 }
 
