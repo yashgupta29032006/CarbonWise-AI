@@ -2,212 +2,19 @@
 
 > An AI-powered sustainability platform that helps individuals understand, track, and reduce their carbon footprint through personalized insights and actionable recommendations.
 
-[![Demo Sandbox](https://img.shields.io/badge/Live%20Demo-Sandbox-emerald?style=for-the-badge)](https://example.com/live-demo-placeholder)
-[![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-zinc?style=for-the-badge&logo=github)](https://example.com/github-repo-placeholder)
-[![Hackathon Submission](https://img.shields.io/badge/Devpost-Submission-blue?style=for-the-badge)](https://example.com/devpost-placeholder)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-emerald?style=for-the-badge)](https://carbonwise-ai.vercel.app)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-zinc?style=for-the-badge&logo=github)](https://github.com/yashgupta29032006/CarbonWise-AI)
+[![Devpost Submission](https://img.shields.io/badge/Devpost-Submission-blue?style=for-the-badge)](https://devpost.com/software/carbonwise-ai-TODO)
 
 ---
 
-## 🌟 Vision
+## 🚀 Quick Start
 
-Climate change is one of the most pressing challenges of our generation. While global policies and industrial updates are vital, individual choices collectively account for a massive share of worldwide emissions. However, making sustainable choices is often difficult because carbon footprints are invisible.
+Get CarbonWise AI running locally in under a minute:
 
-**CarbonWise AI** was built to bridge this gap. Our vision is to democratize climate action by making carbon impact transparent, relatable, and actionable. By translating complex carbon data into simple daily habits and equivalents, CarbonWise AI empowers individuals to make informed decisions that align with a sustainable future—one step at a time.
-
----
-
-## ⚠️ The Problem
-
-Many individuals are eager to live more sustainably and reduce their environmental impact, but they face three critical barriers:
-
-1. **Information Asymmetry**: It is extremely difficult to know where emissions originate. Is a steak dinner worse than driving 20 kilometers? How does a short regional flight compare to leaving the air conditioner on?
-2. **Generic Recommendations**: Most carbon calculators offer generic, high-level tips (e.g., "drive less" or "eat organic") that fail to consider a user's specific lifestyle, occupation, region, or budget constraint.
-3. **Lack of Actionability & Engagement**: Traditional tools feel like static spreadsheets. They compute a one-off yearly figure but lack a progress loop, habit building, daily streaks, or engaging visual analytics to sustain long-term commitment.
-
----
-
-## ✅ The Solution
-
-CarbonWise AI offers an interactive, data-driven, and highly personalized coaching ecosystem to solve these challenges:
-
-* **Granular Multi-Category Tracker**: Log emissions in real-time across Transportation, Energy, Diet, Waste, and Shopping.
-* **Region-Aware Calculations**: Emission math automatically calibrates based on the user's local electricity grid intensity and regional baselines.
-* **AI Sustainability Coach**: A secure, server-side Gemini AI chatbot that analyzes the user's specific footprint and generates tailored roadmap plans.
-* **Gamified Behavior Loops**: Build daily eco habits, accumulate streaks, unlock milestones, and complete targeted weekly challenges adapted to your weakest category.
-
----
-
-## 🛠️ Key Features
-
-### 🌱 Carbon Tracking
-* High-fidelity, multi-tab tracker with real-time feedback.
-* Supports active/public transit, electricity kWh, food preferences, waste sorting/composting, and circular shopping habits.
-* Explanatory tooltips next to every input field to clarify why the data is being collected.
-
-### 🤖 Gemini AI Sustainability Coach
-* Interactive chatbot powered by `gemini-2.5-flash` with conversation memory.
-* Analyzes a rich user profile payload server-side without exposing API keys.
-* Generates practical, non-generic advice (e.g., tailored to a student's budget or local grid constraints).
-
-### 📊 Interactive Analytics Dashboard
-* Live-updating data visualizations built with Recharts.
-* Category breakdown Pie Chart shows relative footprints.
-* 6-month historical Area Chart tracks emissions reductions over time.
-
-### 🎯 Sustainability Goals
-* Set custom weekly reduction targets and monthly CO₂ limits.
-* Visual indicators display percentage progress against targets.
-
-### 📅 Habit Tracking
-* Daily checkable checklist (e.g., cold washing, biking) that records completion.
-* Streaks count and update multipliers on consecutive days of completion.
-
-### 🏆 Weekly Challenges & Achievements
-* Local engine dynamically suggests challenges matching the user's highest emission category.
-* Badges panel tracks unlocked milestones with date stamps.
-
-### 🌍 Environmental Equivalents
-* Translates abstract metric tons of CO₂ into relatable equivalents: trees planted, gallons of gasoline avoided, kilometers not driven, and smartphones charged.
-
-### 📈 Historical Progress Tracking
-* Persists actual logged tracker submissions in localStorage to compute rolling averages and baseline improvement percentages.
-
-### 📄 Downloadable Reports
-* Generate a printable, professionally formatted Markdown sustainability report summarizing scores, habits, and coach advice.
-
-### ♿ Accessibility & UI
-* Screen-reader friendly semantic HTML, ARIA landmarks, keyboard focus rings, and high contrast colors.
-* Premium dark-mode first design with glassmorphic backdrops and Framer Motion micro-animations.
-
----
-
-## 🤖 AI Capabilities & Prompt Engineering
-
-The Gemini AI Coach analyzes the user's data payload server-side to provide customized insights.
-
-```
-+-------------------------------------------------------------+
-|                     User Context Payload                    |
-| (Region, Household Size, Transport, Electricity, Diet,      |
-|  Waste, Shopping, Score, High Category, Goals, History)     |
-+-------------------------------------------------------------+
-                              │
-                              ▼
-+-------------------------------------------------------------+
-|                    Gemini Context Builder                   |
-| (Formats data into a structured sustainability profile text)|
-+-------------------------------------------------------------+
-                              │
-                              ▼
-+-------------------------------------------------------------+
-|                System Prompt & AI Coach Routing             |
-| (Expert coach instructions + user profile + chat memory)    |
-+-------------------------------------------------------------+
-                              │
-                              ▼
-+-------------------------------------------------------------+
-|                Personalized Action Plan Output              |
-| (Markdown formatted: actionable tips, estimated CO2 saved)  |
-+-------------------------------------------------------------+
-```
-
-### Robust Fallback Engine
-If the Gemini API key is not configured, or if rate limits or connection errors occur, the application automatically invokes a **local rule-based recommendation engine** (`getLocalCoachResponse`). This ensures the application never crashes and continues to provide category-specific feedback alongside a friendly fallback notice.
-
----
-
-## 🏗️ Architecture
-
-CarbonWise AI utilizes a modern, unified Next.js 15 App Router architecture with client-side state providers and server-side secure routes.
-
-```
- ┌────────────────────────────────────────────────────────┐
- │                      Next.js App                       │
- └───────────────────────────┬────────────────────────────┘
-                             ▼
- ┌────────────────────────────────────────────────────────┐
- │                    CarbonContext                      │
- │    (State: profile, history, challenges, habits)       │
- └─────────────┬─────────────────────────────┬────────────┘
-               ▼                             ▼
- ┌───────────────────────────┐ ┌──────────────────────────┐
- │         Client UI         │ │     Server API Route     │
- │  (Dashboard, Recharts,    │ │       (/api/chat)        │
- │   Onboarding, Tracker)    │ └─────────────┬────────────┘
- └─────────────┬─────────────┘               ▼
-               │               ┌──────────────────────────┐
-               │               │   Gemini API Endpoint    │
-               │               │   (gemini-2.5-flash)     │
-               ▼               └──────────────────────────┘
- ┌───────────────────────────┐
- │     Local Storage         │
- │ (Persistence of history)  │
- └───────────────────────────┘
-```
-
----
-
-## 💻 Tech Stack
-
-| Layer | Technology | Description |
-| :--- | :--- | :--- |
-| **Frontend Framework** | Next.js 15 (App Router) | High-performance React meta-framework |
-| **Language** | TypeScript | Strictly typed development |
-| **Styling** | Tailwind CSS | Utility-first responsive styling |
-| **Charts** | Recharts | Interactive svg-based SVG data charts |
-| **Animations** | Framer Motion | Fluid micro-animations and route fades |
-| **AI Integration** | Google Gemini API | Server-side REST content generation |
-| **Validation** | Zod | Secure runtime type validation |
-| **Forms** | React Hook Form | High-performance form state management |
-| **Testing** | Jest | Unit and integration test suites |
-
----
-
-## 📐 Carbon Calculation Methodology
-
-Emissions factors utilized in CarbonWise AI are compiled from recognized sources (EPA, DEFRA, and Eora Global):
-
-1. **Transportation**:
-   * Car: `0.180 kg CO₂/km` (adjusted for regional averages)
-   * Bus: `0.089 kg CO₂/km`
-   * Metro/Train: `0.041 kg CO₂/km`
-   * Flight: `0.250 kg CO₂/km` (incorporates high-altitude radiative forcing)
-2. **Electricity**:
-   * Base factor calibrated by region: US (`0.380 kg/kWh`), EU (`0.230 kg/kWh`), APAC (`0.520 kg/kWh`), Global average (`0.420 kg/kWh`).
-   * Scaled by monthly consumption and divided by household size to reflect shared baseloads.
-3. **Diet**:
-   * Vegan: `1.5 kg CO₂/day`
-   * Vegetarian: `2.0 kg CO₂/day`
-   * Mixed: `4.7 kg CO₂/day`
-   * Meat-Heavy: `7.2 kg CO₂/day`
-4. **Waste**:
-   * Standard generation adjusted by recycling frequency (saves up to `100 kg/year`) and composting status (saves `100 kg/year`).
-5. **Shopping**:
-   * Low: `150 kg CO₂/year`, Medium: `450 kg CO₂/year`, High: `900 kg CO₂/year`.
-
-> [!NOTE]
-> Calculations are educational estimates designed to establish relative baselines and help users focus on high-leverage areas. They should not be used as exact corporate auditable metrics.
-
----
-
-## 📸 Screenshots
-
-### 1. Landing Page
-*(Placeholder for Landing Page Screenshot - Premium glassmorphic animations, platform stats, features)*
-
-### 2. Dashboard Hub
-*(Placeholder for Dashboard Screenshot - Recharts category pie, trends area chart, AI Coach, and Habits checklist)*
-
-### 3. Footprint Tracker
-*(Placeholder for Footprint Tracker Screenshot - Multi-category tabs with live summary side panel and relatable equivalents)*
-
----
-
-## 🚀 Installation & Setup
-
-### 1. Clone the Repository
+### 1. Clone & Navigate
 ```bash
-git clone https://github.com/your-username/CarbonWise-AI.git
+git clone https://github.com/yashgupta29032006/CarbonWise-AI.git
 cd CarbonWise-AI
 ```
 
@@ -216,92 +23,214 @@ cd CarbonWise-AI
 npm install
 ```
 
-### 3. Configure Environment Variables
+### 3. Configure API Key
 Create a `.env.local` file in the root directory:
 ```env
 GEMINI_API_KEY=your_api_key_here
 ```
+*(Note: If no API key is specified, the application seamlessly falls back to a local rule-based coaching engine.)*
 
-### 4. Run the Development Server
+### 4. Start Development
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 🔒 Environment Variables
+## 🏆 Hackathon Highlights
 
-| Variable | Description | Location | Required |
-| :--- | :--- | :--- | :--- |
-| `GEMINI_API_KEY` | Google Gemini developer API Key | Server `.env` | Yes (for AI features) |
-
-> [!IMPORTANT]
-> The `GEMINI_API_KEY` must only reside in your server environment `.env` or `.env.local` file. It should never be prefixed with `NEXT_PUBLIC_` or exposed to client-side bundles.
+* 🤖 **Secure Gemini AI Sustainability Coach**: Server-side integration with conversation memory using `gemini-2.5-flash`—completely hidden from client-side bundles.
+* 🌍 **Region-Aware Carbon Calculations**: Emission factors calibrate dynamically based on user grids (US, EU, APAC, Global).
+* 📊 **Interactive Analytics Dashboard**: Beautiful charting powered by Recharts (pie breakdowns and 6-month area trends).
+* 🎯 **Dynamic Challenges**: Weekly challenges automatically adapt to target the user's highest emission category.
+* 📅 **Daily Habits & Streaks**: Engaging gamified checklists with daily streak tracking to promote long-term behavior change.
+* ♿ **Accessibility First**: Screen-reader friendly semantic HTML, ARIA landmarks, keyboard focus outlines, and WCAG AA contrast.
+* 📱 **Polished Responsive Design**: Glassmorphic dark theme tailored for smooth experiences on both desktop and mobile screens.
 
 ---
 
-## 🧪 Testing
+## 💡 Why CarbonWise AI?
 
-We have implemented comprehensive Jest testing to validate math and score generators:
+Traditional carbon footprint calculators often fail to inspire real action. They present a static, annual emission estimate that feels abstract and detached from daily life. Furthermore, they supply generic recommendations (e.g., "eat less meat" or "drive less") without considering a user's location, household size, occupation, or daily commute styles.
 
-```bash
-npm test
+**CarbonWise AI** bridges the gap between awareness and action. We believe personalization is the key to sustainable behavior change. By feeding real calculations directly into a secure Gemini model, the platform constructs an empathetic, context-aware Coach capable of formulating realistic, localized plans. Whether suggesting plant-based recipes for meat-heavy diets or providing a 30-day plan to replace flights with train travel, CarbonWise AI makes climate action simple, daily, and measurable.
+
+---
+
+## ✨ User Journey
+
+```
+┌────────────────────────┐      ┌────────────────────────┐      ┌────────────────────────┐
+│  1. Complete Onboarding│ ───> │ 2. Log Daily Emissions │ ───> │  3. Analyze Dashboard  │
+└────────────────────────┘      └────────────────────────┘      └────────────────────────┘
+                                                                             │
+                                                                             ▼
+┌────────────────────────┐      ┌────────────────────────┐      ┌────────────────────────┐
+│6. Complete Challenges &│ <─── │5. Build Streak Habits &│ <─── │ 4. Chat with AI Coach  │
+│   Improve Carbon Score │      │   Quantify CO2 Saved   │      │ (Markdown Action Plan) │
+└────────────────────────┘      └────────────────────────┘      └────────────────────────┘
 ```
 
-Test coverage includes:
-* `calculations.test.ts`: Validates vehicle grids, regional scaling coefficients, dietary baselines, and waste reductions.
-* `score.test.ts`: Checks exponential curve scoring, sustainable target calculations, and clamping bounds.
-* `gemini.test.ts`: Verifies E2E API routing, message structure maps, and secure fallback logic.
+1. **Complete Onboarding**: Input your region, household, diet, commute, and target reduction level.
+2. **Track Daily Emissions**: Log activities across transport, energy, food, waste, and shopping.
+3. **Analyze Dashboard**: View carbon score dial, category breakdown, equivalents, and trend progress.
+4. **Chat with AI Coach**: Send personalized context to the Gemini Coach to request tailored roadmaps.
+5. **Build Streak Habits**: Check off eco habits daily to build streaks and earn achievements.
+6. **Improve Carbon Score**: Watch your carbon score scale up towards 100 as annual emissions drop.
 
 ---
 
-## 🏗️ Production Build
+## 📂 Project Structure
 
-To test production optimizations and check strict compilation limits:
-
-```bash
-npm run build
+```
+CarbonWise-AI/
+├── src/
+│   ├── app/
+│   │   ├── layout.tsx            # Global contexts (Carbon, Theme, Toast) & OnboardingModal
+│   │   ├── page.tsx              # Animated Landing Page with stats and features
+│   │   ├── dashboard/
+│   │   │   └── page.tsx          # Main analytics hub, Recharts, AI chat, habits, badges
+│   │   ├── tracker/
+│   │   │   └── page.tsx          # Interactive form wizard & equivalents side calculator
+│   │   └── api/
+│   │       └── chat/
+│   │           └── route.ts      # Server POST endpoint with secure Gemini prompt compilation
+│   ├── components/
+│   │   ├── ui/                   # Shared UI primitives (Button, Toast context)
+│   │   ├── Navbar.tsx            # Floating dark mode header
+│   │   └── Footer.tsx            # Informational carbon-conscious footer
+│   ├── context/
+│   │   ├── CarbonContext.tsx     # Central state (submissions, averages, goals, milestones)
+│   │   └── ThemeContext.tsx      # Hydration-safe dark mode manager
+│   └── utils/
+│       ├── carbonCalculations.ts # Mathematical emission coefficients and data quality flags
+│       ├── scoreGenerator.ts     # Normalized score curve (0-100) and rating bands
+│       ├── aiCoach.ts            # High impact action rules and local chatbot fallback
+│       ├── challenges.ts         # Targeted weekly challenges catalog
+│       └── regions.ts            # Regional grid carbon intensity metrics
 ```
 
 ---
 
-## ♿ Accessibility (a11y)
+## 📊 Why This Is Different
 
-* **Contrast Ratios**: Color tokens adhere strictly to WCAG AA guidelines.
-* **Keyboard Navigation**: Focus traps on modals, clear focus outlines on buttons, and fully tabbable forms.
-* **Semantic Markups**: Utilizes HTML5 landmarks (`<main>`, `<section>`, `<nav>`, `<header>`) and appropriate ARIA descriptors.
-
----
-
-## ⚡ Performance Optimization
-
-* **Hydration Protection**: Components use deferred mounting hooks to bypass SSR/CSR hydration errors.
-* **Deferred Charting**: Recharts svg elements load asynchronously on client-mount to prevent initial render blocking.
-* **Static Site Optimization**: Core pages render statically where possible, optimizing Largest Contentful Paint (LCP) performance.
+| Category | Typical Carbon Calculators | CarbonWise AI |
+| :--- | :--- | :--- |
+| **Analysis** | Static annual estimates | Real-time calculation side-panel + equivalents |
+| **Coaching** | Generic text recommendations | Context-aware Gemini AI Coach with memory |
+| **Progress** | One-time computation | Rolling averages, trend tracking, and baseline comparison |
+| **Gamification** | None | Daily checklists, streaks, badges, and weekly challenges |
+| **Data Quality** | Assumed accurate | Transparency indicators (High, Moderate, Approximation) |
+| **Reports** | Raw email result | Downloadable monthly markdown reports |
 
 ---
 
-## 🛡️ Security Measures
+## 🧠 AI in Action
 
-* **Zero Key Exposure**: Gemini endpoints are queried exclusively via secure Next.js API routes (`/api/chat`).
-* **Input Sanitization**: Request bodies are parsed and validated using TypeScript strict configurations before forwarding.
-* **No Cache Leaks**: Local storage keys use unique prefixes to avoid collisions or cross-origin leakage.
+The server-side API handler compiles the user's detailed carbon profile and injects it into a sustainability coach system prompt. Try asking the AI Coach these E2E-tested prompts:
+
+* ❓ **"Explain my carbon score."**
+  * *AI Context response*: Explains how the score is calculated relative to the global sustainable target of **3,500 kg CO₂/year** and cites specific high-emission driver categories.
+* ❓ **"How can I reduce transportation emissions?"**
+  * *AI Context response*: Identifies vehicle kilometers or aviation miles and calculates targeted savings (e.g. replacing flights with trains or car commute with bus).
+* ❓ **"Give me a 30-day sustainability plan."**
+  * *AI Context response*: Returns a weekly roadmap starting with easy habit adjustments and scaling up to home insulation or vehicle transitions.
+* ❓ **"What is my biggest source of emissions?"**
+  * *AI Context response*: pinpoints the worst category dynamically based on your calculations.
+* ❓ **"Suggest the highest-impact actions for my lifestyle."**
+  * *AI Context response*: Recommends the top three behavior changes and estimates annual CO₂ savings.
 
 ---
 
-## 🗺️ Future Roadmap
+## 💻 Tech Stack
 
-* **OCR Invoice Parsing**: Scan utility bills and petrol receipts directly using Gemini Multimodal vision capabilities.
-* **Smart Device Integration**: Connect smart thermostats and home smart-plugs to log actual electric draw.
-* **Carbon Offset Marketplace**: Integrate direct API endpoints to purchase certified gold-standard offsets.
-* **Community Challenges**: Add local leaderboards and team challenges to scale community engagement.
+| Layer | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Frontend Core** | Next.js 15 (App Router) | Optimizes routing, server rendering, and API security |
+| **Language** | TypeScript | Ensures compile-time strictness and type safety |
+| **Styling** | Tailwind CSS | Speeds up styling with premium responsive dark-mode variables |
+| **Animations** | Framer Motion | Drives smooth transitions, onboarding slides, and card fades |
+| **Visual Charts** | Recharts | Renders interactive, client-deferred analytics SVGs |
+| **AI Processing** | Google Gemini API | Server-only REST interface calling `gemini-2.5-flash` |
+| **State Validation** | Zod | Enforces strict schemas on API requests and form submissions |
+| **Form Controller** | React Hook Form | Manages granular inputs without re-rendering lag |
+| **Testing Frame** | Jest | Unit tests math equations, scores, and mock integrations |
 
 ---
 
-## 🌱 Why CarbonWise AI Matters
+## 📐 Carbon Calculation Methodology
 
-Sustainability isn't about achieving individual perfection overnight; it is about making conscious, consistent choices every day. CarbonWise AI makes the invisible visible, helping users identify high-leverage adjustments that fit their lives. By matching intelligent technology with beautiful design, we turn environmental awareness into an achievable, daily habit.
+Calculations are calibrated against regional averages and EPA/DEFRA benchmarks:
+
+1. **Transportation (Car/Motorcycle/Bus/Metro/Train/Flight)**:
+   * Car: `0.180 kg CO₂/km` (Motorcycle: `0.113`, Bus: `0.089`, Train/Metro: `0.041`).
+   * Flight: `0.250 kg CO₂/km` (incorporates high-altitude radiative forcing).
+2. **Electricity**:
+   * Multiplies monthly kWh by regional grids: US (`0.380 kg/kWh`), EU (`0.230 kg/kWh`), APAC (`0.520 kg/kWh`), Global average (`0.420 kg/kWh`).
+   * Divided by household size to reflect shared base footprints.
+3. **Diet**:
+   * Vegan (`1.5`), Vegetarian (`2.0`), Mixed (`4.7`), Meat-Heavy (`7.2`) kg CO₂ equivalent per day.
+4. **Waste**:
+   * Multiplies baseline occupancy emissions. Recycling reduces footprint by `100 kg/year`. Composting reduces footprint by `100 kg/year`.
+5. **Shopping**:
+   * Low (`150`), Medium (`450`), High (`900`) kg CO₂ equivalent annually.
+
+> [!NOTE]
+> Calculations serve as educational estimates designed to highlight reduction opportunities. They are not intended for corporate compliance auditing.
+
+---
+
+## 🛡️ Privacy & Security
+
+* **Server-Only API Access**: The `GEMINI_API_KEY` is retrieved exclusively on Next.js server runtime (`src/app/api/chat/route.ts`).
+* **Zero Client Exposure**: The client never loads `@google/generative-ai` or references API secrets.
+* **Payload Validation**: Inputs are validated against strict TypeScript schemas before hitting the REST endpoint.
+* **No Database Leak**: MVP stores user profiles strictly in local browser storage, ensuring 100% data ownership.
+
+---
+
+## ⚙️ Engineering Highlights
+
+* **Hydration-Safe Mounting**: Prevents server-side mismatches by deferring SVG charting and local storage updates until client-side mount.
+* **Strict TypeScript**: Verified build flags check and eliminate implicit `any` properties and type casting.
+* **Clean Code Standards**: No unused imports or variables, matching strict eslint checks.
+* **High Coverage**: Jest tests validate score generators, calculations, and route response handling.
+
+---
+
+## 📸 Screen Walkthroughs
+
+### 1. Animated Landing Page
+![Landing Page Screenshot](public/screenshots/landing.png)
+*An animated landing page displaying glassmorphic card grids, responsive navbar controls, and initial onboarding entry points.*
+
+### 2. Analytics Dashboard
+![Dashboard Screenshot](public/screenshots/dashboard.png)
+*The carbon analytics panel showing Recharts pie breakdown and 6-month reduction trendlines, flanked by Daily Habits trackers.*
+
+### 3. Footprint Calculator Form
+![Calculator Form Screenshot](public/screenshots/tracker.png)
+*A tabbed wizard displaying transportation commutes alongside the Live equivalents sidebar (gasoline, seedlings equivalents).*
+
+### 4. AI Coach chat
+![AI Coach Chat Screenshot](public/screenshots/coach.png)
+*The Gemini Sustainability chatbot presenting rich markdown advice lists, suggested chips, and a loading typing state.*
+
+---
+
+## 🔮 Future Vision
+
+* **OCR Invoice Parsing**: Scan electricity bills and petrol receipts directly using Gemini Multimodal vision.
+* **Smart Meter Sync**: Automate electricity usage logging by sync-connecting local utility APIs.
+* **Leaderboards**: Set up local community challenge boards to promote collaborative carbon offsets.
+* **Offset Marketplace**: Integrate stripe API endpoints to purchase certified carbon capture offsets.
+
+---
+
+## 🌱 Why It Matters
+
+Individual actions matter. CarbonWise AI makes the invisible carbon footprint visible and provides actionable, personalized roadmaps to make eco-friendly living a daily habit.
 
 ---
 
