@@ -6,6 +6,7 @@ interface ChatMessage {
 }
 
 export async function POST(req: NextRequest) {
+  const isDev = process.env.NODE_ENV === "development";
   try {
     const payload = await req.json();
     const {
@@ -25,17 +26,27 @@ export async function POST(req: NextRequest) {
       habits = [],
     } = payload;
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const rawApiKey = process.env.GEMINI_API_KEY;
+    const apiKey = rawApiKey?.trim();
+    const model = "gemini-2.5-flash";
+
+    if (isDev) {
+      console.log(`[Gemini Diagnostics] process.env.GEMINI_API_KEY present: ${!!rawApiKey}`);
+      console.log(`[Gemini Diagnostics] API Key non-empty after trim: ${!!apiKey}`);
+      console.log(`[Gemini Diagnostics] Model to be used: ${model}`);
+    }
 
     if (!apiKey) {
-      console.warn("Gemini API Key (GEMINI_API_KEY) is not configured in the server environment.");
+      if (isDev) {
+        console.log(`[Gemini Diagnostics] Aborting request: Invalid or missing API key.`);
+      }
       return NextResponse.json(
-        { error: "API key is not configured on the server. Falling back to local coach." },
-        { status: 404 }
+        { error: "Invalid or missing API key" },
+        { status: 400 }
       );
     }
 
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     // Map score to rating bands
     let ratingBand = "Moderate";
@@ -95,48 +106,113 @@ When the user asks questions, refer directly to their data. Be specific, actiona
       });
     }
 
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents,
-        systemInstruction: {
-          parts: [{ text: systemInstruction }],
+    let response: Response;
+    try {
+      if (isDev) {
+        console.log(`[Gemini Diagnostics] Sending request to Gemini API...`);
+      }
+      response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 1000,
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json() as { error?: { message?: string } };
-      console.error("Gemini API error:", errorData);
+        body: JSON.stringify({
+          contents,
+          systemInstruction: {
+            parts: [{ text: systemInstruction }],
+          },
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 1000,
+          },
+        }),
+      });
+      if (isDev) {
+        console.log(`[Gemini Diagnostics] Request reached Gemini. Status code: ${response.status}`);
+      }
+    } catch (fetchErr: unknown) {
+      const errorMsg = fetchErr instanceof Error ? fetchErr.message : "Unknown fetch error";
+      if (isDev) {
+        console.log(`[Gemini Diagnostics] Failed to reach Gemini. Network connectivity issue: ${errorMsg}`);
+      }
       return NextResponse.json(
-        { error: errorData.error?.message || "Gemini API error" },
-        { status: response.status }
+        { error: "Network connectivity issue" },
+        { status: 503 }
       );
     }
 
-    const resData = await response.json() as {
+    if (!response.ok) {
+      const status = response.status;
+      let errorCategory = "Unknown server error";
+      let errorData: Record<string, unknown> = {};
+
+      try {
+        errorData = (await response.json()) as Record<string, unknown>;
+      } catch {
+        errorCategory = "Unknown server error";
+      }
+
+      if (status === 400 || status === 403) {
+        const geminiError = errorData?.error as { message?: string } | undefined;
+        const errMsg = geminiError?.message || "";
+        if (errMsg.toLowerCase().includes("api key") || errMsg.toLowerCase().includes("invalid") || status === 403) {
+          errorCategory = "Authentication failure";
+        } else {
+          errorCategory = "Invalid request format";
+        }
+      } else if (status === 429) {
+        errorCategory = "Rate limit / quota exceeded";
+      } else if (status === 503 || status === 504) {
+        errorCategory = "Temporary service unavailable";
+      } else if (status === 404) {
+        errorCategory = "Invalid request format";
+      }
+
+      if (isDev) {
+        console.error(`[Gemini Diagnostics] Gemini API error response (HTTP ${status}). Category: ${errorCategory}`, errorData);
+      }
+
+      return NextResponse.json(
+        { error: errorCategory },
+        { status }
+      );
+    }
+
+    interface GeminiResponse {
       candidates?: Array<{
         content?: {
           parts?: Array<{ text?: string }>;
         };
       }>;
-    };
+    }
+
+    let resData: GeminiResponse = {};
+    try {
+      resData = (await response.json()) as GeminiResponse;
+    } catch {
+      if (isDev) {
+        console.error(`[Gemini Diagnostics] Parsing failure for success response.`);
+      }
+      return NextResponse.json(
+        { error: "Unknown server error" },
+        { status: 500 }
+      );
+    }
+
+    if (isDev) {
+      console.log(`[Gemini Diagnostics] Response received successfully.`);
+    }
+
     const replyText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "I apologize, I am unable to generate a response at this time.";
 
     return NextResponse.json({ reply: replyText });
 
   } catch (error: unknown) {
-    const errMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Gemini API Route Error:", error);
+    if (isDev) {
+      console.error("[Gemini Diagnostics] Unknown route error:", error);
+    }
     return NextResponse.json(
-      { error: "Internal server error: " + errMessage },
+      { error: "Unknown server error" },
       { status: 500 }
     );
   }

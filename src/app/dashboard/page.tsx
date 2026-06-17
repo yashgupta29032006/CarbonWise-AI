@@ -229,14 +229,27 @@ export default function Dashboard() {
         const data = await response.json();
         setMessages((prev) => [...prev, { role: "coach", content: data.reply }]);
       } else {
-        const fallbackNotice = "🌱 *Note: Showing locally generated fallback recommendations as the AI Coach is offline.* \n\n";
+        let errorMsg = "Unknown error";
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.error || `HTTP ${response.status}`;
+        } catch {
+          errorMsg = `HTTP ${response.status}`;
+        }
+
+        const isDev = process.env.NODE_ENV === "development";
+        const reasonSuffix = isDev ? ` (Reason: ${errorMsg})` : "";
+        const fallbackNotice = `🌱 *Live AI recommendations are temporarily unavailable. Showing locally generated sustainability guidance instead.${reasonSuffix}* \n\n`;
         const localReply = fallbackNotice + getLocalCoachResponse(userMsg, activeEntry, emissionsBreakdown);
         setTimeout(() => {
           setMessages((prev) => [...prev, { role: "coach", content: localReply }]);
         }, 800);
       }
-    } catch {
-      const fallbackNotice = "🌱 *Note: Showing locally generated fallback recommendations as the AI Coach is offline.* \n\n";
+    } catch (err: unknown) {
+      const isDev = process.env.NODE_ENV === "development";
+      const errorMsg = err instanceof Error ? err.message : "Network error";
+      const reasonSuffix = isDev ? ` (Reason: ${errorMsg})` : "";
+      const fallbackNotice = `🌱 *Live AI recommendations are temporarily unavailable. Showing locally generated sustainability guidance instead.${reasonSuffix}* \n\n`;
       const localReply = fallbackNotice + getLocalCoachResponse(userMsg, activeEntry, emissionsBreakdown);
       setMessages((prev) => [...prev, { role: "coach", content: localReply }]);
     } finally {
