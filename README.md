@@ -42,6 +42,73 @@
 > **CarbonWise AI is designed not only to calculate emissions, but to help users understand them, build sustainable habits, and take meaningful actions through personalized AI guidance.**
 
 ---
+
+# 📌 Hackathon Submission Overview
+
+## 1. 🌍 Chosen Vertical
+CarbonWise AI belongs to the **ClimateTech / Sustainability** vertical. The platform is designed to empower individuals to:
+* **Understand** their personal carbon footprint through detailed, multi-category calculation.
+* **Track** emissions over time from daily and weekly activities (transportation, electricity, food, waste, shopping).
+* **Receive** AI-powered, personalized recommendations tailored to their unique lifestyle and region.
+* **Build** long-term sustainable habits through interactive gamification, streaks, and challenges.
+
+By targeting the individual level, CarbonWise AI aims to bridge the critical gap between passive climate awareness and active, measurable behavioral change.
+
+---
+
+## 2. 🧠 Approach & Logic
+The solution is built on a hybrid architecture that combines **deterministic carbon accounting** with **probabilistic generative AI reasoning** to deliver both precision and personalization:
+1. **Granular Profiling**: The application collects details on transportation mileage, energy consumption, dietary choices, shopping frequency, and waste habits.
+2. **Region-Aware Analytics**: Calculations utilize configurable coefficients (e.g., regional grid factors for US, EU, APAC, and Global averages) to ensure mathematical alignment with real local environments.
+3. **Normalized Carbon Scoring**: A custom scoring engine maps footprints to a 0–100 score relative to sustainable annual targets (3,500 kg CO₂/year), establishing transparent performance bands (Excellent, Good, Moderate, High, Critical).
+4. **Structured AI Contextualization**: Rather than sending raw prompts, the server packages the user's current emissions breakdown, region, active habits, and target goals into a structured context payload.
+5. **Gemini AI Coach**: The coach reads the structured context and generates highly specific, contextualized advice.
+6. **Gamification & Habit Checklists**: A local feedback loop translates recommendations into actionable habits and adaptive challenges to encourage continuous progress.
+
+---
+
+## 3. ⚙️ How the Solution Works
+Here is the step-by-step workflow of the application:
+
+```
+┌─────────────────┐      ┌────────────────────────┐      ┌────────────────────────┐
+│   User Input    │ ───> │Carbon Calculation Engine│ ───> │Regional Grid Factors & │
+│ (Activity Logs) │      │ (Deterministic Math)   │      │   Emission Factors     │
+└─────────────────┘      └────────────────────────┘      └────────────────────────┘
+                                                                     │
+                                                                     ▼
+┌─────────────────┐      ┌────────────────────────┐      ┌────────────────────────┐
+│  Dashboard &    │ <─── │Normalized Carbon Score │ <─── │Category Breakdowns &   │
+│  Analytics UI   │      │     (0 - 100 Curve)    │      │Environmental Equivalents│
+└─────────────────┘      └────────────────────────┘      └────────────────────────┘
+        │
+        ▼
+┌─────────────────┐      ┌────────────────────────┐      ┌────────────────────────┐
+│   AI Context    │ ───> │ Gemini AI Coach Route  │ ───> │Personalized Markdown   │
+│  Builder (JSON) │      │  (gemini-2.5-flash)    │      │  Actionable Insights   │
+└─────────────────┘      └────────────────────────┘      └────────────────────────┘
+                                                                     │
+                                                                     ▼
+                                                         ┌────────────────────────┐
+                                                         │Gamified Habit Streaks &│
+                                                         │   Weakest-Category     │
+                                                         │   Weekly Challenges    │
+                                                         └────────────────────────┘
+```
+
+---
+
+## 4. 📝 Assumptions Made
+To ensure transparency and define the system boundaries, the following assumptions are documented:
+* **Educational Intent**: Carbon footprint estimates are for awareness and educational purposes rather than exact scientific or corporate compliance auditing.
+* **Reference Baselines**: Emission factors (such as average flight or vehicle emissions per km) are derived from standardized references (EPA/DEFRA) and represent general regional averages.
+* **Accuracy of Input**: Calculations assume that user-reported activities (e.g., monthly electricity kWh, annual travel distance) are reasonably accurate.
+* **Advisory Nature of AI**: AI-generated coaching recommendations are advisory and designed to inspire practical reductions, not to serve as regulatory or professional carbon auditing advice.
+* **Graceful Local Fallback**: In case of network drops, rate limits, or API key absence, the frontend detects server-side failures and seamlessly falls back to a deterministic local rule engine.
+* **Household Offsets**: Household-level allocations (e.g., dividing shared electricity footprint by household occupants) assume equal sharing of base energy consumption.
+
+---
+
 ## 🚀 Quick Start
 
 Get CarbonWise AI running locally in under a minute:
