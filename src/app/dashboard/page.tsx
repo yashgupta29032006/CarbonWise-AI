@@ -88,7 +88,7 @@ export default function Dashboard() {
   const [messages, setMessages] = useState<Array<{ role: "user" | "coach"; content: string }>>([]);
   const [chatInput, setChatInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Goals Form State
   const [isEditingGoals, setIsEditingGoals] = useState(false);
@@ -111,9 +111,23 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted]);
 
-  // Scroll to bottom of chat
+  // Reset window scroll to top on dashboard mount
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: "instant"
+    });
+  }, []);
+
+  // Scroll to bottom of chat container only
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: "smooth"
+      });
+    }
   }, [messages, isTyping]);
 
   if (!mounted) {
@@ -833,7 +847,7 @@ Disclaimer: Carbon estimates are approximate and intended for awareness and educ
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
             </div>
 
-            <div className="flex-grow overflow-y-auto max-h-[300px] py-4 space-y-4 my-2 pr-1.5 scrollbar-thin scrollbar-thumb-zinc-200 dark:scrollbar-thumb-zinc-800">
+            <div ref={chatContainerRef} className="flex-grow overflow-y-auto max-h-[300px] py-4 space-y-4 my-2 pr-1.5 scrollbar-thin scrollbar-thumb-zinc-200 dark:scrollbar-thumb-zinc-800">
               {messages.map((m, index) => {
                 const isCoach = m.role === "coach";
                 return (
@@ -874,7 +888,6 @@ Disclaimer: Carbon estimates are approximate and intended for awareness and educ
                   </div>
                 </div>
               )}
-              <div ref={chatEndRef} />
             </div>
 
             {/* Suggested prompts */}
