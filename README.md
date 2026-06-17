@@ -5,9 +5,43 @@
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-emerald?style=for-the-badge)](https://carbonwise-ai.vercel.app)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-zinc?style=for-the-badge&logo=github)](https://github.com/yashgupta29032006/CarbonWise-AI)
 [![Devpost Submission](https://img.shields.io/badge/Devpost-Submission-blue?style=for-the-badge)](https://devpost.com/software/carbonwise-ai-TODO)
-
 ---
 
+# 🏆 Judge's Guide (60-Second Demo)
+
+### ⚡ Experience CarbonWise AI in 60 Seconds
+
+1. **Launch the application** and complete the onboarding flow by selecting your region, household details, transportation habits, and sustainability goals.
+2. **Open the Carbon Tracker** and enter a few sample activities (transportation, electricity, food, waste, or shopping) to generate your personalized carbon footprint.
+3. **Visit the Dashboard** to explore:
+   * Your Carbon Score
+   * Category-wise emissions breakdown
+   * Historical trends
+   * Environmental equivalents
+   * Goals and progress tracking
+   * Weekly challenges and achievements
+4. **Open the AI Sustainability Coach** and try prompts such as:
+   * "Explain my carbon score."
+   * "What is my biggest source of emissions?"
+   * "Give me a 30-day sustainability plan."
+   * "How can I reduce transportation emissions?"
+   * "Suggest the top three actions to lower my annual CO₂ emissions."
+5. **Observe how the AI generates personalized recommendations** using your tracked activities, goals, and sustainability profile instead of generic advice.
+6. **Review your habits, streaks, and challenges**, then optionally download or export your sustainability summary.
+
+### 🔎 What Judges Should Notice
+* 🤖 **Personalized Gemini-powered AI Coaching**: The coach directly references your tracked metrics, grid baselines, and active streaks to offer targeted solutions.
+* 🌍 **Region-Aware Carbon Calculations**: Electricity grid factors automatically adjust depending on whether you are in the US, EU, APAC, or Global regions.
+* 📊 **Interactive Analytics & Visualizations**: Beautiful, SVG-based responsive Recharts charts that load safely without hydration mismatches.
+* 🎯 **Actionable Recommendations**: Clear, quantified CO₂ and financial savings estimates rather than static numbers.
+* 📈 **Historical Tracking**: Submissions are persisted to compute rolling averages and baseline improvement percentages.
+* 🏆 **Gamified Daily Habits, Streaks, & Challenges**: Daily checkable checklists with multipliers and challenges dynamically adapted to your weakest category.
+* 🔒 **Secure Server-Side AI Integration**: The Gemini API key is kept exclusively on the server, with robust client-side fallback logic.
+* ♿ **Accessibility & Responsive Design**: Screen-reader friendly semantic HTML, WCAG AA contrast ratios, and fluid dark-mode transitions optimized for mobile.
+
+> **CarbonWise AI is designed not only to calculate emissions, but to help users understand them, build sustainable habits, and take meaningful actions through personalized AI guidance.**
+
+---
 ## 🚀 Quick Start
 
 Get CarbonWise AI running locally in under a minute:
