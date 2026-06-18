@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useCarbon } from "@/context/CarbonContext";
 import { useToast } from "@/components/ui/Toast";
-import ReactMarkdown from "react-markdown";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Button from "@/components/ui/Button";
@@ -21,6 +20,11 @@ const DashboardCharts = dynamic(() => import("@/components/DashboardCharts"), {
       <Loader2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400 animate-spin" />
     </div>
   ),
+});
+
+const ReactMarkdown = dynamic(() => import("react-markdown"), {
+  ssr: false,
+  loading: () => <p className="animate-pulse bg-zinc-100 dark:bg-zinc-800 h-4 w-full rounded"></p>,
 });
 import {
   Leaf,
