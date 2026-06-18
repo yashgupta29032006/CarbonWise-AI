@@ -11,20 +11,16 @@ import Button from "@/components/ui/Button";
 import { getHighestImpactActions, getLocalCoachResponse } from "@/utils/aiCoach";
 import { getEnvironmentalEquivalents } from "@/utils/carbonCalculations";
 import { motion, AnimatePresence } from "framer-motion";
-import confetti from "canvas-confetti";
-import {
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-} from "recharts";
+import dynamic from "next/dynamic";
+
+const DashboardCharts = dynamic(() => import("@/components/DashboardCharts"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[320px] w-full flex items-center justify-center">
+      <Loader2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400 animate-spin" />
+    </div>
+  ),
+});
 import {
   Leaf,
   Sparkles,
@@ -727,48 +723,11 @@ Disclaimer: Carbon estimates are approximate and intended for awareness and educ
           </div>
 
           <div className="h-[320px] w-full flex items-center justify-center">
-            {activeChartTab === "pie" ? (
-              pieData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={95}
-                      fill="#8884d8"
-                      dataKey="value"
-                      label={({ name, percent }: { name?: string; percent?: number }) => `${name || ""} ${(typeof percent === "number" ? percent * 100 : 0).toFixed(0)}%`}
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip formatter={(val) => [`${Number(val || 0).toLocaleString()} kg CO₂`, "Emissions"]} />
-                    <Legend verticalAlign="bottom" height={36} />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="text-zinc-400 text-sm">No emissions logged yet. Fill the tracker.</div>
-              )
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={history} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a15" />
-                  <XAxis dataKey="date" stroke="#888888" fontSize={11} tickLine={false} />
-                  <YAxis stroke="#888888" fontSize={11} tickLine={false} tickFormatter={(val) => `${val} kg`} />
-                  <RechartsTooltip formatter={(val) => [`${Number(val || 0).toLocaleString()} kg CO₂`, "Total"]} />
-                  <Area type="monotone" dataKey="total" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorTotal)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
+            <DashboardCharts
+              activeChartTab={activeChartTab}
+              pieData={pieData}
+              history={history}
+            />
           </div>
         </section>
 
@@ -1189,10 +1148,12 @@ Disclaimer: Carbon estimates are approximate and intended for awareness and educ
                           incrementChallenge(chal.id);
                           if (chal.current + 1 === chal.target) {
                             toast(`Challenge Completed: ${chal.title}!`, "success");
-                            confetti({
-                              particleCount: 50,
-                              spread: 60,
-                              colors: ["#10b981", "#84cc16"],
+                            import("canvas-confetti").then((module) => {
+                              module.default({
+                                particleCount: 50,
+                                spread: 60,
+                                colors: ["#10b981", "#84cc16"],
+                              });
                             });
                           }
                         }}

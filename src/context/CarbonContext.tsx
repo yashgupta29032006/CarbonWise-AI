@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from "react";
 import {
   CarbonEntry,
   calculateEmissions,
@@ -148,43 +148,51 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
   const [historySubmissions, setHistorySubmissions] = useState<HistorySubmission[]>([]);
 
   // Derived States
-  const emissionsBreakdown = calculateEmissions(activeEntry);
-  const scoreInfo = calculateCarbonScore(emissionsBreakdown.total);
-  const dataQuality = getDataQualityInfo(activeEntry);
+  const emissionsBreakdown = useMemo(() => calculateEmissions(activeEntry), [activeEntry]);
+  const scoreInfo = useMemo(() => calculateCarbonScore(emissionsBreakdown.total), [emissionsBreakdown.total]);
+  const dataQuality = useMemo(() => getDataQualityInfo(activeEntry), [activeEntry]);
 
   // Map submissions list to HistoryEntry[] for graph plotting
-  const history: HistoryEntry[] = historySubmissions.map((sub) => {
-    const d = new Date(sub.timestamp);
-    const dateStr = d.toLocaleString("default", { month: "short" });
-    return {
-      date: dateStr,
-      score: sub.score,
-      transport: sub.emissions.transport,
-      electricity: sub.emissions.electricity,
-      food: sub.emissions.food,
-      waste: sub.emissions.waste,
-      shopping: sub.emissions.shopping,
-      total: sub.emissions.total,
-    };
-  });
+  const history: HistoryEntry[] = useMemo(() => {
+    return historySubmissions.map((sub) => {
+      const d = new Date(sub.timestamp);
+      const dateStr = d.toLocaleString("default", { month: "short" });
+      return {
+        date: dateStr,
+        score: sub.score,
+        transport: sub.emissions.transport,
+        electricity: sub.emissions.electricity,
+        food: sub.emissions.food,
+        waste: sub.emissions.waste,
+        shopping: sub.emissions.shopping,
+        total: sub.emissions.total,
+      };
+    });
+  }, [historySubmissions]);
 
   // Calculate rolling average
-  const rollingAverage = historySubmissions.length > 0
-    ? Math.round(historySubmissions.reduce((sum, s) => sum + s.emissions.total, 0) / historySubmissions.length)
-    : emissionsBreakdown.total;
+  const rollingAverage = useMemo(() => {
+    return historySubmissions.length > 0
+      ? Math.round(historySubmissions.reduce((sum, s) => sum + s.emissions.total, 0) / historySubmissions.length)
+      : emissionsBreakdown.total;
+  }, [historySubmissions, emissionsBreakdown.total]);
 
   // Calculate improvement percentage vs first submission
-  let improvementPercentage = 0;
-  if (historySubmissions.length > 1) {
-    const firstTotal = historySubmissions[0].emissions.total;
-    const latestTotal = historySubmissions[historySubmissions.length - 1].emissions.total;
-    improvementPercentage = firstTotal > 0 ? Math.round(((firstTotal - latestTotal) / firstTotal) * 100) : 0;
-  }
+  const improvementPercentage = useMemo(() => {
+    if (historySubmissions.length > 1) {
+      const firstTotal = historySubmissions[0].emissions.total;
+      const latestTotal = historySubmissions[historySubmissions.length - 1].emissions.total;
+      return firstTotal > 0 ? Math.round(((firstTotal - latestTotal) / firstTotal) * 100) : 0;
+    }
+    return 0;
+  }, [historySubmissions]);
 
   // Fetch previous category breakdown (for previous vs current comparison)
-  const previousBreakdown = historySubmissions.length > 1
-    ? historySubmissions[historySubmissions.length - 2].emissions
-    : null;
+  const previousBreakdown = useMemo(() => {
+    return historySubmissions.length > 1
+      ? historySubmissions[historySubmissions.length - 2].emissions
+      : null;
+  }, [historySubmissions]);
 
   useEffect(() => {
     const savedOnboarding = localStorage.getItem("cw-onboarding-data");
@@ -289,7 +297,7 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Dynamically recalculate badge progress numbers
-  const updateBadgeProgressList = (
+  const updateBadgeProgressList = useCallback((
     currentBadges: Badge[],
     entry: CarbonEntry,
     score: number,
@@ -340,7 +348,7 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
         unlockedAt: unlocked && !b.unlocked ? new Date().toLocaleDateString() : b.unlockedAt,
       };
     });
-  };
+  }, [isOnboarded]);
 
   // Load weekly challenges adapted to worst category
   const getAdaptedChallenges = (worst: string): Challenge[] => {
@@ -352,7 +360,7 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
-  const regenerateChallenges = () => {
+  const regenerateChallenges = useCallback(() => {
     // Determine weakest category
     const cats = [
       { id: "transport", value: emissionsBreakdown.transport },
@@ -368,10 +376,10 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
     setChallenges(newChallenges);
     saveToStorage("cw-challenges", newChallenges);
     toast("Weekly challenges adapted to your weakest category!", "info");
-  };
+  }, [emissionsBreakdown, toast]);
 
   // 1. Complete onboarding wizard
-  const completeOnboarding = (data: OnboardingData) => {
+  const completeOnboarding = useCallback((data: OnboardingData) => {
     setIsOnboarded(true);
     setOnboardingData(data);
     saveToStorage("cw-onboarding-data", data);
@@ -453,10 +461,10 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
     );
     setBadges(updatedBadges);
     saveToStorage("cw-badges", updatedBadges);
-  };
+  }, [habits, updateBadgeProgressList]);
 
   // 2. Update carbon active entry (Tracker form submit)
-  const updateCarbonEntry = (entry: CarbonEntry) => {
+  const updateCarbonEntry = useCallback((entry: CarbonEntry) => {
     setActiveEntry(entry);
     saveToStorage("cw-active-entry", entry);
 
@@ -471,13 +479,14 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
       score,
     };
 
-    const updatedSubs = [...historySubmissions, newSubmission];
-    // Keep max 12 submissions for memory safety
-    if (updatedSubs.length > 12) {
-      updatedSubs.shift();
-    }
-    setHistorySubmissions(updatedSubs);
-    saveToStorage("cw-history-submissions", updatedSubs);
+    setHistorySubmissions((prevSubs) => {
+      const updatedSubs = [...prevSubs, newSubmission];
+      if (updatedSubs.length > 12) {
+        updatedSubs.shift();
+      }
+      saveToStorage("cw-history-submissions", updatedSubs);
+      return updatedSubs;
+    });
 
     // Re-check challenges category (if worst category has changed, load adapted challenges)
     const cats = [
@@ -490,21 +499,51 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
     const sorted = [...cats].sort((a, b) => b.value - a.value);
     const worst = sorted[0].id;
 
-    let currentChallenges = [...challenges];
-    if (challenges.length === 0 || challenges[0].category !== worst) {
-      currentChallenges = getAdaptedChallenges(worst);
-      setChallenges(currentChallenges);
-      saveToStorage("cw-challenges", currentChallenges);
-    }
+    setChallenges((prevChallenges) => {
+      let currentChallenges = [...prevChallenges];
+      if (prevChallenges.length === 0 || prevChallenges[0].category !== worst) {
+        currentChallenges = getAdaptedChallenges(worst);
+        saveToStorage("cw-challenges", currentChallenges);
+      }
+      
+      // Dynamic Badge checks
+      setBadges((prevBadges) => {
+        const updatedBadges = updateBadgeProgressList(prevBadges, entry, score, habits, currentChallenges);
+        saveToStorage("cw-badges", updatedBadges);
+        return updatedBadges;
+      });
 
-    // Dynamic Badge checks
-    const updatedBadges = updateBadgeProgressList(badges, entry, score, habits, currentChallenges);
-    setBadges(updatedBadges);
-    saveToStorage("cw-badges", updatedBadges);
-  };
+      return currentChallenges;
+    });
+  }, [habits, updateBadgeProgressList]);
+
+  // 4. Increment Weekly Challenges
+  const incrementChallenge = useCallback((id: string) => {
+    setChallenges((prevChallenges) => {
+      const updatedChallenges = prevChallenges.map((c) => {
+        if (c.id === id && !c.completed) {
+          const nextVal = Math.min(c.target, c.current + 1);
+          const completed = nextVal === c.target;
+          return { ...c, current: nextVal, completed };
+        }
+        return c;
+      });
+      saveToStorage("cw-challenges", updatedChallenges);
+
+      // Update Badge Progress
+      setBadges((prevBadges) => {
+        const score = calculateCarbonScore(emissionsBreakdown.total).score;
+        const updatedBadges = updateBadgeProgressList(prevBadges, activeEntry, score, habits, updatedChallenges);
+        saveToStorage("cw-badges", updatedBadges);
+        return updatedBadges;
+      });
+
+      return updatedChallenges;
+    });
+  }, [emissionsBreakdown.total, activeEntry, habits, updateBadgeProgressList]);
 
   // 3. Toggle habits
-  const toggleHabit = (id: string) => {
+  const toggleHabit = useCallback((id: string) => {
     const todayStr = new Date().toDateString();
 
     const updatedHabits = habits.map((h) => {
@@ -541,39 +580,18 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
     const updatedBadges = updateBadgeProgressList(badges, activeEntry, score, updatedHabits, challenges);
     setBadges(updatedBadges);
     saveToStorage("cw-badges", updatedBadges);
-  };
-
-  // 4. Increment Weekly Challenges
-  const incrementChallenge = (id: string) => {
-    const updatedChallenges = challenges.map((c) => {
-      if (c.id === id && !c.completed) {
-        const nextVal = Math.min(c.target, c.current + 1);
-        const completed = nextVal === c.target;
-        return { ...c, current: nextVal, completed };
-      }
-      return c;
-    });
-
-    setChallenges(updatedChallenges);
-    saveToStorage("cw-challenges", updatedChallenges);
-
-    // Update Badge Progress
-    const score = calculateCarbonScore(emissionsBreakdown.total).score;
-    const updatedBadges = updateBadgeProgressList(badges, activeEntry, score, habits, updatedChallenges);
-    setBadges(updatedBadges);
-    saveToStorage("cw-badges", updatedBadges);
-  };
+  }, [habits, badges, activeEntry, emissionsBreakdown.total, challenges, incrementChallenge, updateBadgeProgressList]);
 
   // 5. Update Goals
-  const updateGoals = (weeklyTarget: number, monthlyTarget: number) => {
+  const updateGoals = useCallback((weeklyTarget: number, monthlyTarget: number) => {
     setWeeklyReductionTarget(weeklyTarget);
     setMonthlyCO2Target(monthlyTarget);
     saveToStorage("cw-weekly-target", weeklyTarget);
     saveToStorage("cw-monthly-target", monthlyTarget);
-  };
+  }, []);
 
   // 6. Reset all data
-  const resetAllData = () => {
+  const resetAllData = useCallback(() => {
     localStorage.removeItem("cw-onboarding-data");
     localStorage.removeItem("cw-active-entry");
     localStorage.removeItem("cw-habits");
@@ -592,7 +610,7 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
     setWeeklyReductionTarget(25);
     setMonthlyCO2Target(400);
     setHistorySubmissions([]);
-  };
+  }, []);
 
   return (
     <CarbonContext.Provider

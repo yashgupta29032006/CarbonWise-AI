@@ -4,7 +4,9 @@ import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { CarbonProvider } from "@/context/CarbonContext";
 import { ToastProvider } from "@/components/ui/Toast";
-import OnboardingModal from "@/components/OnboardingModal";
+import dynamic from "next/dynamic";
+
+const OnboardingModal = dynamic(() => import("@/components/OnboardingModal"));
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 const geistSans = Geist({

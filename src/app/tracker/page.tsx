@@ -13,7 +13,6 @@ import Button from "@/components/ui/Button";
 import { REGIONS } from "@/utils/regions";
 import { calculateEmissions, CarbonEntry } from "@/utils/carbonCalculations";
 import { calculateCarbonScore } from "@/utils/scoreGenerator";
-import confetti from "canvas-confetti";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Car,
@@ -152,11 +151,13 @@ export default function CarbonTracker() {
     toast("Sustainability profile saved successfully!", "success");
 
     // Success fireworks
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ["#10b981", "#34d399", "#a3e635"],
+    import("canvas-confetti").then((module) => {
+      module.default({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ["#10b981", "#34d399", "#a3e635"],
+      });
     });
 
     router.push("/dashboard");
