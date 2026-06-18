@@ -21,6 +21,51 @@ import {
   Zap,
 } from "lucide-react";
 
+const FEATURES = [
+  {
+    title: "Carbon Tracking",
+    description: "Log travel, food, home power usage, waste, and shopping in seconds with smart inputs.",
+    icon: Activity,
+    gradient: "from-emerald-500/20 to-teal-500/10",
+    iconColor: "text-emerald-500",
+  },
+  {
+    title: "AI Recommendations",
+    description: "Get hyper-personalized recommendations tailored by AI based on your emission spikes.",
+    icon: Sparkles,
+    gradient: "from-teal-500/20 to-cyan-500/10",
+    iconColor: "text-teal-500",
+  },
+  {
+    title: "Progress Analytics",
+    description: "Understand your footprints with clear interactive trend charts, pie slices, and category compares.",
+    icon: LineChart,
+    gradient: "from-emerald-600/20 to-green-500/10",
+    iconColor: "text-green-600",
+  },
+  {
+    title: "Sustainability Goals",
+    description: "Set personalized weekly and monthly emission targets to track and complete your carbon-neutral path.",
+    icon: Target,
+    gradient: "from-lime-500/20 to-emerald-500/10",
+    iconColor: "text-lime-600 dark:text-lime-400",
+  },
+  {
+    title: "Habit Building",
+    description: "Engage in daily carbon-saving routines. Maintain streaks to build lifelong sustainable habits.",
+    icon: CalendarRange,
+    gradient: "from-cyan-500/20 to-emerald-500/10",
+    iconColor: "text-cyan-500",
+  },
+  {
+    title: "Eco Challenges",
+    description: "Take on weekly eco-challenges like vegetarian meal days or walking missions for extra achievements.",
+    icon: Trophy,
+    gradient: "from-amber-500/20 to-lime-500/10",
+    iconColor: "text-amber-500",
+  },
+];
+
 export default function LandingPage() {
   const { isOnboarded, emissionsBreakdown, habits } = useCarbon();
 
@@ -44,51 +89,6 @@ export default function LandingPage() {
   const weeklyImprovement = isOnboarded
     ? "18%"
     : "15%";
-
-  const features = [
-    {
-      title: "Carbon Tracking",
-      description: "Log travel, food, home power usage, waste, and shopping in seconds with smart inputs.",
-      icon: Activity,
-      gradient: "from-emerald-500/20 to-teal-500/10",
-      iconColor: "text-emerald-500",
-    },
-    {
-      title: "AI Recommendations",
-      description: "Get hyper-personalized recommendations tailored by AI based on your emission spikes.",
-      icon: Sparkles,
-      gradient: "from-teal-500/20 to-cyan-500/10",
-      iconColor: "text-teal-500",
-    },
-    {
-      title: "Progress Analytics",
-      description: "Understand your footprints with clear interactive trend charts, pie slices, and category compares.",
-      icon: LineChart,
-      gradient: "from-emerald-600/20 to-green-500/10",
-      iconColor: "text-green-600",
-    },
-    {
-      title: "Sustainability Goals",
-      description: "Set personalized weekly and monthly emission targets to track and complete your carbon-neutral path.",
-      icon: Target,
-      gradient: "from-lime-500/20 to-emerald-500/10",
-      iconColor: "text-lime-600 dark:text-lime-400",
-    },
-    {
-      title: "Habit Building",
-      description: "Engage in daily carbon-saving routines. Maintain streaks to build lifelong sustainable habits.",
-      icon: CalendarRange,
-      gradient: "from-cyan-500/20 to-emerald-500/10",
-      iconColor: "text-cyan-500",
-    },
-    {
-      title: "Eco Challenges",
-      description: "Take on weekly eco-challenges like vegetarian meal days or walking missions for extra achievements.",
-      icon: Trophy,
-      gradient: "from-amber-500/20 to-lime-500/10",
-      iconColor: "text-amber-500",
-    },
-  ];
 
   return (
     <div className="flex flex-col min-h-screen overflow-x-hidden relative">
@@ -235,7 +235,7 @@ export default function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feat, idx) => (
+            {FEATURES.map((feat, idx) => (
               <motion.div
                 key={feat.title}
                 initial={{ opacity: 0, y: 15 }}

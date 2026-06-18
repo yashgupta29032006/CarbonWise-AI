@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from "react";
 import {
   CarbonEntry,
   calculateEmissions,
@@ -8,6 +8,8 @@ import {
   EmissionsBreakdown,
   DataQualityInfo,
   getDataQualityInfo,
+  getSeededEntryFromOnboarding,
+  getGoalsFromOnboarding,
 } from "../utils/carbonCalculations";
 import { calculateCarbonScore, ScoreInfo } from "../utils/scoreGenerator";
 import { Badge, INITIAL_BADGES } from "../utils/achievements";
@@ -134,6 +136,7 @@ const CATEGORY_CHALLENGES: Record<string, Omit<Challenge, "completed" | "current
 
 export function CarbonProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
+  const lastSerialized = useRef<Record<string, string>>({});
   const [mounted, setMounted] = useState(false);
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null);
@@ -207,19 +210,24 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
     if (savedOnboarding) {
       setIsOnboarded(true);
       setOnboardingData(JSON.parse(savedOnboarding));
+      lastSerialized.current["cw-onboarding-data"] = savedOnboarding;
     }
     if (savedEntry) {
       setActiveEntry(JSON.parse(savedEntry));
+      lastSerialized.current["cw-active-entry"] = savedEntry;
     }
     if (savedWeeklyTarget) {
       setWeeklyReductionTarget(Number(savedWeeklyTarget));
+      lastSerialized.current["cw-weekly-target"] = savedWeeklyTarget;
     }
     if (savedMonthlyTarget) {
       setMonthlyCO2Target(Number(savedMonthlyTarget));
+      lastSerialized.current["cw-monthly-target"] = savedMonthlyTarget;
     }
 
     if (savedSubmissions) {
       setHistorySubmissions(JSON.parse(savedSubmissions));
+      lastSerialized.current["cw-history-submissions"] = savedSubmissions;
     }
 
     // Sync habits and streaks
@@ -241,22 +249,34 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
         return h;
       });
       setHabits(adjustedHabits);
+      lastSerialized.current["cw-habits"] = savedHabits;
     }
 
     if (savedChallenges) {
       setChallenges(JSON.parse(savedChallenges));
+      lastSerialized.current["cw-challenges"] = savedChallenges;
     }
 
     if (savedBadges) {
       setBadges(JSON.parse(savedBadges));
+      lastSerialized.current["cw-badges"] = savedBadges;
     }
 
     setMounted(true);
   }, []);
 
-  const saveToStorage = (key: string, value: unknown) => {
-    localStorage.setItem(key, JSON.stringify(value));
-  };
+  const saveToStorage = useCallback((key: string, value: unknown) => {
+    try {
+      const serialized = JSON.stringify(value);
+      if (lastSerialized.current[key] === serialized) {
+        return;
+      }
+      lastSerialized.current[key] = serialized;
+      localStorage.setItem(key, serialized);
+    } catch (err) {
+      console.error(`Error saving to localStorage: ${key}`, err);
+    }
+  }, []);
 
   // Generate historical submission database mock
   const generateMockSubmissions = (current: EmissionsBreakdown, entry: CarbonEntry): HistorySubmission[] => {
@@ -376,7 +396,7 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
     setChallenges(newChallenges);
     saveToStorage("cw-challenges", newChallenges);
     toast("Weekly challenges adapted to your weakest category!", "info");
-  }, [emissionsBreakdown, toast]);
+  }, [emissionsBreakdown, toast, saveToStorage]);
 
   // 1. Complete onboarding wizard
   const completeOnboarding = useCallback((data: OnboardingData) => {
@@ -385,29 +405,7 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
     saveToStorage("cw-onboarding-data", data);
 
     // Seed preset active entry based on onboarding defaults
-    const updatedEntry: CarbonEntry = {
-      region: data.region,
-      householdSize: data.householdSize,
-      transport: {
-        walking: data.transitType === "active" ? 15 : data.transitType === "mixed" ? 10 : 2,
-        bicycle: data.transitType === "active" ? 20 : data.transitType === "mixed" ? 10 : 0,
-        motorcycle: 0,
-        car: data.commuteStyle === "drive" ? 280 : data.commuteStyle === "hybrid" ? 120 : 0,
-        bus: data.commuteStyle === "transit" ? 100 : data.transitType === "public" ? 80 : 0,
-        metro: data.commuteStyle === "transit" ? 50 : 0,
-        train: 0,
-        flight: 2200,
-      },
-      electricity: data.renewableEnergy === "yes" ? 100 : data.region === "US" ? 850 : 450,
-      food: data.dietPreference,
-      waste: {
-        recyclingFrequency: "sometimes",
-        plasticUsage: "medium",
-        composting: false,
-        wasteGeneration: "medium",
-      },
-      shopping: "medium",
-    };
+    const updatedEntry = getSeededEntryFromOnboarding(data);
 
     setActiveEntry(updatedEntry);
     saveToStorage("cw-active-entry", updatedEntry);
@@ -419,18 +417,8 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
     setHistorySubmissions(mockSubs);
     saveToStorage("cw-history-submissions", mockSubs);
 
-    // Initial goals limits
-    const initialMonthlyTotal = Math.round(initialBreakdown.total / 12);
-    let monthlyGoal = Math.round(initialMonthlyTotal * 0.9);
-    let weeklyReductionGoal = Math.round((initialBreakdown.total * 0.1) / 52);
-
-    if (data.goalType === "20") {
-      monthlyGoal = Math.round(initialMonthlyTotal * 0.8);
-      weeklyReductionGoal = Math.round((initialBreakdown.total * 0.8) / 52);
-    } else if (data.goalType === "neutral") {
-      monthlyGoal = Math.round(initialMonthlyTotal * 0.5);
-      weeklyReductionGoal = Math.round((initialBreakdown.total * 0.5) / 52);
-    }
+    // Seed targets
+    const { monthlyGoal, weeklyReductionGoal } = getGoalsFromOnboarding(data, initialBreakdown.total);
 
     setMonthlyCO2Target(monthlyGoal);
     setWeeklyReductionTarget(weeklyReductionGoal);
@@ -461,7 +449,7 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
     );
     setBadges(updatedBadges);
     saveToStorage("cw-badges", updatedBadges);
-  }, [habits, updateBadgeProgressList]);
+  }, [habits, updateBadgeProgressList, saveToStorage]);
 
   // 2. Update carbon active entry (Tracker form submit)
   const updateCarbonEntry = useCallback((entry: CarbonEntry) => {
@@ -515,7 +503,7 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
 
       return currentChallenges;
     });
-  }, [habits, updateBadgeProgressList]);
+  }, [habits, updateBadgeProgressList, saveToStorage]);
 
   // 4. Increment Weekly Challenges
   const incrementChallenge = useCallback((id: string) => {
@@ -540,7 +528,7 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
 
       return updatedChallenges;
     });
-  }, [emissionsBreakdown.total, activeEntry, habits, updateBadgeProgressList]);
+  }, [emissionsBreakdown.total, activeEntry, habits, updateBadgeProgressList, saveToStorage]);
 
   // 3. Toggle habits
   const toggleHabit = useCallback((id: string) => {
@@ -580,7 +568,7 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
     const updatedBadges = updateBadgeProgressList(badges, activeEntry, score, updatedHabits, challenges);
     setBadges(updatedBadges);
     saveToStorage("cw-badges", updatedBadges);
-  }, [habits, badges, activeEntry, emissionsBreakdown.total, challenges, incrementChallenge, updateBadgeProgressList]);
+  }, [habits, badges, activeEntry, emissionsBreakdown.total, challenges, incrementChallenge, updateBadgeProgressList, saveToStorage]);
 
   // 5. Update Goals
   const updateGoals = useCallback((weeklyTarget: number, monthlyTarget: number) => {
@@ -588,7 +576,7 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
     setMonthlyCO2Target(monthlyTarget);
     saveToStorage("cw-weekly-target", weeklyTarget);
     saveToStorage("cw-monthly-target", monthlyTarget);
-  }, []);
+  }, [saveToStorage]);
 
   // 6. Reset all data
   const resetAllData = useCallback(() => {
@@ -612,35 +600,60 @@ export function CarbonProvider({ children }: { children: React.ReactNode }) {
     setHistorySubmissions([]);
   }, []);
 
+  const contextValue = useMemo(() => ({
+    isOnboarded,
+    onboardingData,
+    activeEntry,
+    emissionsBreakdown,
+    scoreInfo,
+    weeklyReductionTarget,
+    monthlyCO2Target,
+    habits,
+    badges,
+    challenges,
+    history,
+    historySubmissions,
+    rollingAverage,
+    improvementPercentage,
+    previousBreakdown,
+    dataQuality,
+    mounted,
+    completeOnboarding,
+    updateCarbonEntry,
+    toggleHabit,
+    incrementChallenge,
+    updateGoals,
+    resetAllData,
+    regenerateChallenges,
+  }), [
+    isOnboarded,
+    onboardingData,
+    activeEntry,
+    emissionsBreakdown,
+    scoreInfo,
+    weeklyReductionTarget,
+    monthlyCO2Target,
+    habits,
+    badges,
+    challenges,
+    history,
+    historySubmissions,
+    rollingAverage,
+    improvementPercentage,
+    previousBreakdown,
+    dataQuality,
+    mounted,
+    completeOnboarding,
+    updateCarbonEntry,
+    toggleHabit,
+    incrementChallenge,
+    updateGoals,
+    resetAllData,
+    regenerateChallenges,
+  ]);
+
   return (
-    <CarbonContext.Provider
-      value={{
-        isOnboarded,
-        onboardingData,
-        activeEntry,
-        emissionsBreakdown,
-        scoreInfo,
-        weeklyReductionTarget,
-        monthlyCO2Target,
-        habits,
-        badges,
-        challenges,
-        history,
-        historySubmissions,
-        rollingAverage,
-        improvementPercentage,
-        previousBreakdown,
-        dataQuality,
-        mounted,
-        completeOnboarding,
-        updateCarbonEntry,
-        toggleHabit,
-        incrementChallenge,
-        updateGoals,
-        resetAllData,
-        regenerateChallenges,
-      }}
-    >
+    <CarbonContext.Provider value={contextValue}>
       {children}
     </CarbonContext.Provider>
   );

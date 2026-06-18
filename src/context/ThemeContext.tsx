@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from "react";
 
 type Theme = "light" | "dark";
 
@@ -29,16 +29,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
-  const toggleTheme = () => {
-    const nextTheme = theme === "light" ? "dark" : "light";
-    setTheme(nextTheme);
-    localStorage.setItem("carbonwise-theme", nextTheme);
-    document.documentElement.classList.toggle("dark", nextTheme === "dark");
-  };
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => {
+      const nextTheme = prev === "light" ? "dark" : "light";
+      localStorage.setItem("carbonwise-theme", nextTheme);
+      document.documentElement.classList.toggle("dark", nextTheme === "dark");
+      return nextTheme;
+    });
+  }, []);
+
+  const value = useMemo(() => ({ theme, toggleTheme }), [theme, toggleTheme]);
 
   // Prevent hydration mismatch by rendering a fallback or children after mounting
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={value}>
       <div className={mounted ? "" : "invisible"}>{children}</div>
     </ThemeContext.Provider>
   );

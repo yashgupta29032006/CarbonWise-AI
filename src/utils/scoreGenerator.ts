@@ -1,3 +1,5 @@
+import { SCORE_THRESHOLDS } from "./constants";
+
 export interface ScoreInfo {
   score: number;
   band: "Excellent" | "Good" | "Moderate" | "High" | "Critical";
@@ -24,22 +26,22 @@ export function calculateCarbonScore(emissionsAnnualKg: number): ScoreInfo {
   let bgClass = "bg-emerald-50 dark:bg-emerald-950/30";
   let description = "";
 
-  if (score >= 80) {
+  if (score >= SCORE_THRESHOLDS.excellent) {
     band = "Excellent";
     colorClass = "text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800";
     bgClass = "bg-emerald-50 dark:bg-emerald-950/30";
     description = "Your carbon footprint is well within the sustainable global threshold. Excellent work maintaining low-impact habits!";
-  } else if (score >= 60) {
+  } else if (score >= SCORE_THRESHOLDS.good) {
     band = "Good";
     colorClass = "text-lime-600 dark:text-lime-400 border-lime-200 dark:border-lime-800";
     bgClass = "bg-lime-50 dark:bg-lime-950/30";
     description = "Your emissions are moderate. With a few minor adjustments to transport or energy usage, you can reach an excellent sustainability rating.";
-  } else if (score >= 40) {
+  } else if (score >= SCORE_THRESHOLDS.moderate) {
     band = "Moderate";
     colorClass = "text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800";
     bgClass = "bg-amber-50 dark:bg-amber-950/30";
     description = "Your emissions are close to the average for industrialized regions. Transitioning some habits (like diet or daily transit) could make a substantial impact.";
-  } else if (score >= 20) {
+  } else if (score >= SCORE_THRESHOLDS.high) {
     band = "High";
     colorClass = "text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800";
     bgClass = "bg-orange-50 dark:bg-orange-950/30";

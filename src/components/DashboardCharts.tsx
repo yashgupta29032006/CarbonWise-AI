@@ -54,6 +54,7 @@ export default function DashboardCharts({
             outerRadius={95}
             fill="#8884d8"
             dataKey="value"
+            isAnimationActive={false}
             label={({ name, percent }: { name?: string; percent?: number }) =>
               `${name || ""} ${(typeof percent === "number" ? percent * 100 : 0).toFixed(0)}%`
             }
@@ -111,6 +112,7 @@ export default function DashboardCharts({
           stroke="#10b981"
           strokeWidth={2.5}
           fillOpacity={1}
+          isAnimationActive={false}
           fill="url(#colorTotal)"
         />
       </AreaChart>

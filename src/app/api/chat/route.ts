@@ -5,10 +5,47 @@ interface ChatMessage {
   content: string;
 }
 
+interface ChatPayload {
+  messages?: ChatMessage[];
+  region?: string;
+  householdSize?: number;
+  transportData?: Record<string, number>;
+  electricityUsage?: number;
+  foodHabits?: "vegan" | "vegetarian" | "mixed" | "meat-heavy";
+  wasteHabits?: {
+    recyclingFrequency?: "always" | "sometimes" | "never";
+    plasticUsage?: "low" | "medium" | "high";
+    composting?: boolean;
+    wasteGeneration?: "low" | "medium" | "high";
+  };
+  shoppingHabits?: "low" | "medium" | "high";
+  carbonScore?: number;
+  highestEmissionCategory?: string;
+  sustainabilityGoals?: {
+    weeklyReductionTarget?: number;
+    monthlyCO2Target?: number;
+    goalType?: string;
+  };
+  historicalTrendSummary?: {
+    rollingAverage?: number;
+    improvementPercentage?: number;
+    submissionsCount?: number;
+  };
+  carbonData?: {
+    transport?: number;
+    electricity?: number;
+    food?: number;
+    waste?: number;
+    shopping?: number;
+    total?: number;
+  };
+  habits?: Array<{ name: string; streak: number }>;
+}
+
 export async function POST(req: NextRequest) {
   const isDev = process.env.NODE_ENV === "development";
   try {
-    const payload = await req.json();
+    const payload = (await req.json()) as ChatPayload;
     const {
       messages = [],
       region = "Global",

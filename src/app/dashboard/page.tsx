@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useCarbon } from "@/context/CarbonContext";
 import { useToast } from "@/components/ui/Toast";
@@ -10,6 +10,7 @@ import Footer from "@/components/Footer";
 import Button from "@/components/ui/Button";
 import { getHighestImpactActions, getLocalCoachResponse } from "@/utils/aiCoach";
 import { getEnvironmentalEquivalents } from "@/utils/carbonCalculations";
+import { AI_COACH_PROMPTS } from "@/utils/constants";
 import { motion, AnimatePresence } from "framer-motion";
 import dynamic from "next/dynamic";
 
@@ -53,6 +54,18 @@ import {
   Home as HomeIcon,
 } from "lucide-react";
 
+const MARKDOWN_COMPONENTS = {
+  h1: ({ children }: { children?: React.ReactNode }) => <h1 className="text-sm font-extrabold text-zinc-950 dark:text-zinc-50 mt-3 mb-1.5">{children}</h1>,
+  h2: ({ children }: { children?: React.ReactNode }) => <h2 className="text-xs font-extrabold text-zinc-950 dark:text-zinc-50 mt-2.5 mb-1">{children}</h2>,
+  h3: ({ children }: { children?: React.ReactNode }) => <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-2 mb-1">{children}</h3>,
+  h4: ({ children }: { children?: React.ReactNode }) => <h4 className="text-[11px] font-bold text-zinc-900 dark:text-zinc-100 mt-1.5 mb-0.5">{children}</h4>,
+  p: ({ children }: { children?: React.ReactNode }) => <p className="my-1.5 leading-relaxed">{children}</p>,
+  ul: ({ children }: { children?: React.ReactNode }) => <ul className="list-disc pl-5 my-1.5 space-y-1">{children}</ul>,
+  ol: ({ children }: { children?: React.ReactNode }) => <ol className="list-decimal pl-5 my-1.5 space-y-1">{children}</ol>,
+  li: ({ children }: { children?: React.ReactNode }) => <li className="leading-relaxed list-item">{children}</li>,
+  strong: ({ children }: { children?: React.ReactNode }) => <strong className="font-bold text-zinc-950 dark:text-zinc-50">{children}</strong>,
+};
+
 export default function Dashboard() {
   const {
     isOnboarded,
@@ -93,6 +106,28 @@ export default function Dashboard() {
 
   // Explainability Modal state
   const [explainMetric, setExplainMetric] = useState<"score" | "emissions" | "equivalents" | "goals" | "quality" | null>(null);
+
+  // Calculate high & low emission categories (placed unconditionally before early returns)
+  const categories = useMemo(() => [
+    { name: "Transportation", value: emissionsBreakdown.transport, key: "transport", color: "#10b981", icon: Car },
+    { name: "Electricity", value: emissionsBreakdown.electricity, key: "electricity", color: "#06b6d4", icon: Zap },
+    { name: "Food Habits", value: emissionsBreakdown.food, key: "food", color: "#84cc16", icon: Utensils },
+    { name: "Waste Management", value: emissionsBreakdown.waste, key: "waste", color: "#a1a1aa", icon: Trash2 },
+    { name: "Shopping Habits", value: emissionsBreakdown.shopping, key: "shopping", color: "#f59e0b", icon: ShoppingBag },
+  ], [emissionsBreakdown]);
+
+  const sortedCategories = useMemo(() => [...categories].sort((a, b) => a.value - b.value), [categories]);
+  const bestCategory = useMemo(() => sortedCategories[0], [sortedCategories]);
+  const worstCategory = useMemo(() => sortedCategories[sortedCategories.length - 1], [sortedCategories]);
+
+  // Recharts Pie Chart Data
+  const pieData = useMemo(() => categories
+    .filter((c) => c.value > 0)
+    .map((c) => ({
+      name: c.name,
+      value: c.value,
+      color: c.color,
+    })), [categories]);
 
   // Initialize Chat with Welcome Message from AI Coach
   useEffect(() => {
@@ -161,28 +196,6 @@ export default function Dashboard() {
       </div>
     );
   }
-
-  // Calculate high & low emission categories
-  const categories = [
-    { name: "Transportation", value: emissionsBreakdown.transport, key: "transport", color: "#10b981", icon: Car },
-    { name: "Electricity", value: emissionsBreakdown.electricity, key: "electricity", color: "#06b6d4", icon: Zap },
-    { name: "Food Habits", value: emissionsBreakdown.food, key: "food", color: "#84cc16", icon: Utensils },
-    { name: "Waste Management", value: emissionsBreakdown.waste, key: "waste", color: "#a1a1aa", icon: Trash2 },
-    { name: "Shopping Habits", value: emissionsBreakdown.shopping, key: "shopping", color: "#f59e0b", icon: ShoppingBag },
-  ];
-
-  const sortedCategories = [...categories].sort((a, b) => a.value - b.value);
-  const bestCategory = sortedCategories[0];
-  const worstCategory = sortedCategories[sortedCategories.length - 1];
-
-  // Recharts Pie Chart Data
-  const pieData = categories
-    .filter((c) => c.value > 0)
-    .map((c) => ({
-      name: c.name,
-      value: c.value,
-      color: c.color,
-    }));
 
   // AI chat send handler
   const sendMessage = async (userMsg: string) => {
@@ -832,19 +845,7 @@ Disclaimer: Carbon estimates are approximate and intended for awareness and educ
                       }`}
                     >
                       <div className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-zinc-800 dark:text-zinc-200">
-                        <ReactMarkdown
-                          components={{
-                            h1: ({ children }) => <h1 className="text-sm font-extrabold text-zinc-950 dark:text-zinc-50 mt-3 mb-1.5">{children}</h1>,
-                            h2: ({ children }) => <h2 className="text-xs font-extrabold text-zinc-950 dark:text-zinc-50 mt-2.5 mb-1">{children}</h2>,
-                            h3: ({ children }) => <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-2 mb-1">{children}</h3>,
-                            h4: ({ children }) => <h4 className="text-[11px] font-bold text-zinc-900 dark:text-zinc-100 mt-1.5 mb-0.5">{children}</h4>,
-                            p: ({ children }) => <p className="my-1.5 leading-relaxed">{children}</p>,
-                            ul: ({ children }) => <ul className="list-disc pl-5 my-1.5 space-y-1">{children}</ul>,
-                            ol: ({ children }) => <ol className="list-decimal pl-5 my-1.5 space-y-1">{children}</ol>,
-                            li: ({ children }) => <li className="leading-relaxed list-item">{children}</li>,
-                            strong: ({ children }) => <strong className="font-bold text-zinc-950 dark:text-zinc-50">{children}</strong>,
-                          }}
-                        >
+                        <ReactMarkdown components={MARKDOWN_COMPONENTS}>
                           {m.content}
                         </ReactMarkdown>
                       </div>
@@ -864,14 +865,7 @@ Disclaimer: Carbon estimates are approximate and intended for awareness and educ
 
             {/* Suggested prompts */}
             <div className="flex flex-wrap gap-1.5 py-3 border-t border-zinc-100 dark:border-zinc-800/80 no-print">
-              {[
-                "Explain my carbon score",
-                "How can I reduce transportation emissions?",
-                "Give me a 30-day sustainability plan",
-                "What is my biggest source of emissions?",
-                "Suggest the highest impact actions",
-                "How can I reduce electricity usage?",
-              ].map((prompt) => (
+              {AI_COACH_PROMPTS.map((prompt) => (
                 <button
                   key={prompt}
                   onClick={() => handlePromptClick(prompt)}

@@ -1,5 +1,6 @@
 import { CarbonEntry, EmissionsBreakdown } from "./carbonCalculations";
 import { calculateCarbonScore } from "./scoreGenerator";
+import { EMISSION_FACTORS, CLIMATE_NEUTRAL_THRESHOLD, SUSTAINABLE_BUDGET_TARGET } from "./constants";
 
 export interface CoachSuggestion {
   category: "transport" | "energy" | "food" | "waste" | "shopping";
@@ -22,7 +23,7 @@ export function getHighestImpactActions(
   if (entry.transport.car > 0) {
     const weeklyKm = entry.transport.car;
     // Replacing 25% of car travel with public/active transport
-    const potentialSaving = Math.round(weeklyKm * 0.25 * 0.180 * 52);
+    const potentialSaving = Math.round(weeklyKm * 0.25 * EMISSION_FACTORS.transport.car * 52);
     if (potentialSaving > 20) {
       suggestions.push({
         category: "transport",
@@ -55,7 +56,9 @@ export function getHighestImpactActions(
   // 3. Shift Diet (Meat heavy / Mixed)
   if (entry.food === "meat-heavy" || entry.food === "mixed") {
     // Replace 3 meat meals per week (equivalent to ~3/21 or 15% of food)
-    const factor = entry.food === "meat-heavy" ? 5.2 : 2.7; // saving vs vegetarian
+    const factor = entry.food === "meat-heavy"
+      ? (EMISSION_FACTORS.food["meat-heavy"] - EMISSION_FACTORS.food.vegetarian)
+      : (EMISSION_FACTORS.food.mixed - EMISSION_FACTORS.food.vegetarian); // saving vs vegetarian
     const potentialSaving = Math.round(factor * (3 / 7) * 365);
     suggestions.push({
       category: "food",
@@ -72,8 +75,8 @@ export function getHighestImpactActions(
   if (entry.waste.recyclingFrequency !== "always" || !entry.waste.composting) {
     let potentialSaving = 0;
     const description = "Begin separating paper/plastic recycling and organic composting.";
-    if (entry.waste.recyclingFrequency !== "always") potentialSaving += 100;
-    if (!entry.waste.composting) potentialSaving += 100;
+    if (entry.waste.recyclingFrequency !== "always") potentialSaving -= EMISSION_FACTORS.waste.recycling.always;
+    if (!entry.waste.composting) potentialSaving -= EMISSION_FACTORS.waste.composting;
 
     suggestions.push({
       category: "waste",
@@ -88,7 +91,9 @@ export function getHighestImpactActions(
 
   // 5. Shopping Habit reduction
   if (entry.shopping === "high" || entry.shopping === "medium") {
-    const savings = entry.shopping === "high" ? 550 : 300;
+    const savings = entry.shopping === "high"
+      ? (EMISSION_FACTORS.shopping.high - EMISSION_FACTORS.shopping.medium)
+      : (EMISSION_FACTORS.shopping.medium - EMISSION_FACTORS.shopping.low);
     suggestions.push({
       category: "shopping",
       title: "Reduce Buying Frequency by 20%",
@@ -119,12 +124,12 @@ export function getLocalCoachResponse(
 Your current transport emissions are **${emissions.transport.toLocaleString()} kg CO₂/year**.
 ${
   carKms > 0
-    ? `- **Driving Impact:** You log **${carKms} km/week** by car. Replacing 25% of this with public transit or walking would save roughly **${Math.round(carKms * 0.25 * 0.180 * 52)} kg CO₂** annually.\n`
+    ? `- **Driving Impact:** You log **${carKms} km/week** by car. Replacing 25% of this with public transit or walking would save roughly **${Math.round(carKms * 0.25 * EMISSION_FACTORS.transport.car * 52)} kg CO₂** annually.\n`
     : ""
 }
 ${
   flightKms > 0
-    ? `- **Aviation Impact:** You travel **${flightKms.toLocaleString()} km/year** by flight. Aviation has a massive footprint (${(0.250).toFixed(3)} kg/km). Offsetting flights or choosing trains when traveling locally cuts this footprint.\n`
+    ? `- **Aviation Impact:** You travel **${flightKms.toLocaleString()} km/year** by flight. Aviation has a massive footprint (${(EMISSION_FACTORS.transport.flight).toFixed(3)} kg/km). Offsetting flights or choosing trains when traveling locally cuts this footprint.\n`
     : ""
 }
 - **Eco Habits:** Try checking off the *'Used bicycle instead of car'* or *'Walked for short trips'* habits daily on the dashboard to build streaks!`;
@@ -147,9 +152,9 @@ Your energy footprint is **${emissions.electricity.toLocaleString()} kg CO₂/ye
     const diet = entry.food;
     let tip = "";
     if (diet === "meat-heavy") {
-      tip = "Your diet is **Meat-Heavy** (~7.2 kg CO₂/day). Shifting to vegetarian three times a week saves over **500 kg CO₂/year**!";
+      tip = `Your diet is **Meat-Heavy** (~${EMISSION_FACTORS.food["meat-heavy"]} kg CO₂/day). Shifting to vegetarian three times a week saves over **500 kg CO₂/year**!`;
     } else if (diet === "mixed") {
-      tip = "Your diet is **Mixed** (~4.7 kg CO₂/day). Substituting meat meals with vegetarian or vegan alternatives 3 times weekly saves **280 kg CO₂/year**.";
+      tip = `Your diet is **Mixed** (~${EMISSION_FACTORS.food.mixed} kg CO₂/day). Substituting meat meals with vegetarian or vegan alternatives 3 times weekly saves **280 kg CO₂/year**.`;
     } else {
       tip = `Your diet is **${diet}**, which is highly eco-friendly! You save significant carbon compared to average mixed diets (~1.7 tons saved annually).`;
     }
@@ -163,10 +168,10 @@ Your annual food-related emissions total **${emissions.food.toLocaleString()} kg
     const scoreInfo = calculateCarbonScore(emissions.total);
     return `### 📊 Carbon Score Analysis
 Your Current Carbon Score is **${scoreInfo.score}/100** (**${scoreInfo.band}** rating).
-- **How it works:** The score is calculated relative to a global sustainable per capita budget of **3,500 kg CO₂/year**.
+- **How it works:** The score is calculated relative to a global sustainable per capita budget of **${SUSTAINABLE_BUDGET_TARGET} kg CO₂/year**.
 - **Emissions Scale:**
-  - Annual footprint <= 2,000 kg: Score 100 (Climate Neutrality)
-  - Annual footprint 3,500 kg: Score 86 (Sustainable Budget Target)
+  - Annual footprint <= ${CLIMATE_NEUTRAL_THRESHOLD} kg: Score 100 (Climate Neutrality)
+  - Annual footprint ${SUSTAINABLE_BUDGET_TARGET} kg: Score 86 (Sustainable Budget Target)
   - Annual footprint 8,000 kg: Score 55 (Industrial Average)
   - Annual footprint > 20,000 kg: Score 0-20 (Critical Footprint)
 - **Current Footprint:** Your footprint is **${emissions.total.toLocaleString()} kg CO₂/year**. Reducing this value will directly increase your score.`;
@@ -193,3 +198,4 @@ ${
 
 *Ask me about specific categories like "transport", "energy", "food" or "score" for detailed assistance.*`;
 }
+

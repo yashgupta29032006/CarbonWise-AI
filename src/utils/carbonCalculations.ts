@@ -1,4 +1,6 @@
 import { REGIONS } from "./regions";
+import { EMISSION_FACTORS, EQUIVALENTS } from "./constants";
+import type { OnboardingData } from "../context/CarbonContext";
 
 export interface CarbonEntry {
   region: string;
@@ -78,14 +80,14 @@ export function calculateEmissions(entry: CarbonEntry): EmissionsBreakdown {
 
   // 1. Transportation
   const transportConfig = {
-    walking: 0,
-    bicycle: 0,
-    motorcycle: 0.103,
-    car: 0.180,
+    walking: EMISSION_FACTORS.transport.walking,
+    bicycle: EMISSION_FACTORS.transport.bicycle,
+    motorcycle: EMISSION_FACTORS.transport.motorcycle,
+    car: EMISSION_FACTORS.transport.car,
     bus: region.publicTransitFactor || 0.065,
     metro: (region.publicTransitFactor || 0.065) * 0.5,
     train: (region.publicTransitFactor || 0.065) * 0.4,
-    flight: 0.250,
+    flight: EMISSION_FACTORS.transport.flight,
   };
 
   const weeklyLandEmissions =
@@ -103,48 +105,37 @@ export function calculateEmissions(entry: CarbonEntry): EmissionsBreakdown {
   const electricityAnnual = ((entry.electricity || 0) * region.electricityFactor * 12) / householdSize;
 
   // 3. Food
-  const foodConfig = {
-    vegan: 1.5,
-    vegetarian: 2.0,
-    mixed: 4.7,
-    "meat-heavy": 7.2,
-  };
-  const foodAnnual = foodConfig[entry.food] * 365;
+  const foodAnnual = EMISSION_FACTORS.food[entry.food] * 365;
 
   // 4. Waste
   let wasteAnnual = region.wasteBaseline;
 
   if (entry.waste.recyclingFrequency === "always") {
-    wasteAnnual -= 150;
+    wasteAnnual += EMISSION_FACTORS.waste.recycling.always;
   } else if (entry.waste.recyclingFrequency === "sometimes") {
-    wasteAnnual -= 50;
+    wasteAnnual += EMISSION_FACTORS.waste.recycling.sometimes;
   }
 
   if (entry.waste.plasticUsage === "low") {
-    wasteAnnual -= 50;
+    wasteAnnual += EMISSION_FACTORS.waste.plastic.low;
   } else if (entry.waste.plasticUsage === "high") {
-    wasteAnnual += 100;
+    wasteAnnual += EMISSION_FACTORS.waste.plastic.high;
   }
 
   if (entry.waste.composting) {
-    wasteAnnual -= 100;
+    wasteAnnual += EMISSION_FACTORS.waste.composting;
   }
 
   if (entry.waste.wasteGeneration === "low") {
-    wasteAnnual -= 100;
+    wasteAnnual += EMISSION_FACTORS.waste.generation.low;
   } else if (entry.waste.wasteGeneration === "high") {
-    wasteAnnual += 150;
+    wasteAnnual += EMISSION_FACTORS.waste.generation.high;
   }
 
   wasteAnnual = Math.max(50, wasteAnnual);
 
   // 5. Shopping
-  const shoppingConfig = {
-    low: 150,
-    medium: 450,
-    high: 1000,
-  };
-  const shoppingAnnual = shoppingConfig[entry.shopping];
+  const shoppingAnnual = EMISSION_FACTORS.shopping[entry.shopping];
 
   return {
     transport: Math.round(transportAnnual),
@@ -190,44 +181,96 @@ export function getEnvironmentalEquivalents(emissionsKg: number): EcoEquivalent[
     {
       id: "trees",
       label: "Trees Seedlings",
-      value: `${Math.round(emissionsKg / 22)} trees`,
+      value: `${Math.round(emissionsKg / EQUIVALENTS.trees)} trees`,
       description: "Number of mature seedlings growing for 10 years needed to absorb this carbon.",
       iconName: "TreePine",
     },
     {
       id: "gas",
       label: "Gasoline Avoided",
-      value: `${Math.round(emissionsKg / 8.88).toLocaleString()} gal`,
+      value: `${Math.round(emissionsKg / EQUIVALENTS.gas).toLocaleString()} gal`,
       description: "Gallons of motor fuel combusted releasing equivalent greenhouse gas.",
       iconName: "Flame",
     },
     {
       id: "miles",
       label: "Commute Mileage",
-      value: `${Math.round(emissionsKg / 0.180).toLocaleString()} km`,
+      value: `${Math.round(emissionsKg / EQUIVALENTS.miles).toLocaleString()} km`,
       description: "Distance driven in an average passenger car producing this footprint.",
       iconName: "Car",
     },
     {
       id: "phones",
       label: "Smartphones Charged",
-      value: `${Math.round(emissionsKg / 0.0082).toLocaleString()}`,
+      value: `${Math.round(emissionsKg / EQUIVALENTS.phones).toLocaleString()}`,
       description: "Times a standard phone battery could be charged under typical grid conditions.",
       iconName: "Smartphone",
     },
     {
       id: "coal",
       label: "Coal Burned",
-      value: `${Math.round(emissionsKg / 0.9).toLocaleString()} kg`,
+      value: `${Math.round(emissionsKg / EQUIVALENTS.coal).toLocaleString()} kg`,
       description: "Kilograms of coal burned in standard power generating stations.",
       iconName: "Zap",
     },
     {
       id: "homes",
       label: "Homes Powered",
-      value: `${(emissionsKg / 4800).toFixed(2)} homes`,
+      value: `${(emissionsKg / EQUIVALENTS.homes).toFixed(2)} homes`,
       description: "Average annual residential electrical footprint counterparts.",
       iconName: "Home",
     },
   ];
 }
+
+/**
+ * Seed preset active entry based on onboarding survey choices.
+ */
+export function getSeededEntryFromOnboarding(data: OnboardingData): CarbonEntry {
+  return {
+    region: data.region,
+    householdSize: data.householdSize,
+    transport: {
+      walking: data.transitType === "active" ? 15 : data.transitType === "mixed" ? 10 : 2,
+      bicycle: data.transitType === "active" ? 20 : data.transitType === "mixed" ? 10 : 0,
+      motorcycle: 0,
+      car: data.commuteStyle === "drive" ? 280 : data.commuteStyle === "hybrid" ? 120 : 0,
+      bus: data.commuteStyle === "transit" ? 100 : data.transitType === "public" ? 80 : 0,
+      metro: data.commuteStyle === "transit" ? 50 : 0,
+      train: 0,
+      flight: 2200,
+    },
+    electricity: data.renewableEnergy === "yes" ? 100 : data.region === "US" ? 850 : 450,
+    food: data.dietPreference,
+    waste: {
+      recyclingFrequency: "sometimes",
+      plasticUsage: "medium",
+      composting: false,
+      wasteGeneration: "medium",
+    },
+    shopping: "medium",
+  };
+}
+
+/**
+ * Seed carbon reduction targets based on onboarding data.
+ */
+export function getGoalsFromOnboarding(data: OnboardingData, initialAnnualTotal: number) {
+  const initialMonthlyTotal = Math.round(initialAnnualTotal / 12);
+  let monthlyGoal = Math.round(initialMonthlyTotal * 0.9);
+  let weeklyReductionGoal = Math.round((initialAnnualTotal * 0.1) / 52);
+
+  if (data.goalType === "20") {
+    monthlyGoal = Math.round(initialMonthlyTotal * 0.8);
+    weeklyReductionGoal = Math.round((initialAnnualTotal * 0.8) / 52);
+  } else if (data.goalType === "neutral") {
+    monthlyGoal = Math.round(initialMonthlyTotal * 0.5);
+    weeklyReductionGoal = Math.round((initialAnnualTotal * 0.5) / 52);
+  }
+
+  return {
+    monthlyGoal,
+    weeklyReductionGoal,
+  };
+}
+
