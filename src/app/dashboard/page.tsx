@@ -107,6 +107,14 @@ export default function Dashboard() {
   // Explainability Modal state
   const [explainMetric, setExplainMetric] = useState<"score" | "emissions" | "equivalents" | "goals" | "quality" | null>(null);
 
+  const [printDateStr, setPrintDateStr] = useState("");
+  const [printTimeStr, setPrintTimeStr] = useState("");
+
+  useEffect(() => {
+    setPrintDateStr(new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }));
+    setPrintTimeStr(new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }));
+  }, []);
+
   // Calculate high & low emission categories (placed unconditionally before early returns)
   const categories = useMemo(() => [
     { name: "Transportation", value: emissionsBreakdown.transport, key: "transport", color: "#10b981", icon: Car },
@@ -394,7 +402,7 @@ Disclaimer: Carbon estimates are approximate and intended for awareness and educ
     <div className="flex flex-col min-h-screen">
       <Navbar />
 
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 print:hidden">
         
         {/* HEADER CONTROLS */}
         <section aria-label="Dashboard Overview" className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-6 no-print">
@@ -1336,6 +1344,242 @@ Disclaimer: Carbon estimates are approximate and intended for awareness and educ
           )}
         </AnimatePresence>
       </main>
+
+      {/* PRINT-ONLY EXECUTIVE SUSTAINABILITY REPORT */}
+      <div className="hidden print:block font-sans text-zinc-950 bg-white max-w-4xl mx-auto space-y-8">
+        
+        {/* PAGE 1 */}
+        <div className="print-page py-6">
+          <div className="space-y-6">
+            
+            {/* Professional Cover/Header Banner */}
+            <header className="border-b-4 border-emerald-600 pb-6">
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-3xl font-extrabold tracking-tight text-emerald-700">🌱 CarbonWise AI</span>
+                  </div>
+                  <h1 className="text-xl font-bold text-zinc-800 mt-1">Premium Carbon Tracker & Sustainability Coach</h1>
+                  <p className="text-sm italic text-zinc-500 mt-1">&quot;Personalized AI-powered insights for sustainable living.&quot;</p>
+                </div>
+                <div className="text-right text-xs text-zinc-500 space-y-1">
+                  <div className="font-semibold text-zinc-700">OFFICIAL ASSESSMENT</div>
+                  <div className="text-[10px] text-zinc-400">CarbonWise AI Platform</div>
+                </div>
+              </div>
+            </header>
+
+            {/* Report Metadata */}
+            <section className="bg-zinc-50 p-4 rounded-xl border border-zinc-200 grid grid-cols-5 gap-4 text-xs">
+              <div>
+                <span className="text-zinc-500 uppercase tracking-wider block font-semibold mb-0.5 flex items-center gap-1">
+                  <span>📅</span> Date
+                </span>
+                <span className="text-sm font-bold text-zinc-800">{printDateStr || "N/A"}</span>
+              </div>
+              <div>
+                <span className="text-zinc-500 uppercase tracking-wider block font-semibold mb-0.5 flex items-center gap-1">
+                  <span>🕒</span> Time
+                </span>
+                <span className="text-sm font-bold text-zinc-800">{printTimeStr || "N/A"}</span>
+              </div>
+              <div>
+                <span className="text-zinc-500 uppercase tracking-wider block font-semibold mb-0.5 flex items-center gap-1">
+                  <span>🌍</span> Region
+                </span>
+                <span className="text-sm font-bold text-zinc-800">{activeEntry.region}</span>
+              </div>
+              <div>
+                <span className="text-zinc-500 uppercase tracking-wider block font-semibold mb-0.5 flex items-center gap-1">
+                  <span>👥</span> Household
+                </span>
+                <span className="text-sm font-bold text-zinc-800">{activeEntry.householdSize} {activeEntry.householdSize === 1 ? 'occupant' : 'occupants'}</span>
+              </div>
+              <div>
+                <span className="text-zinc-500 uppercase tracking-wider block font-semibold mb-0.5 flex items-center gap-1">
+                  <span>📄</span> Report Type
+                </span>
+                <span className="text-sm font-bold text-zinc-800">Sustainability Report</span>
+              </div>
+            </section>
+
+            {/* Key Sustainability Metrics */}
+            <section className="grid grid-cols-2 gap-4">
+              <div className="p-4 border border-zinc-200 rounded-xl bg-emerald-50/20 space-y-1.5">
+                <span className="text-zinc-500 font-semibold block text-[10px] uppercase tracking-wider">Carbon Score</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-extrabold text-emerald-700">{scoreInfo.score}</span>
+                  <span className="text-xs text-zinc-500">/ 100</span>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100/50 text-emerald-800 ml-auto uppercase tracking-wide">
+                    {scoreInfo.band}
+                  </span>
+                </div>
+                <p className="text-[10px] text-zinc-500 leading-snug">
+                  Your progress compared to the global sustainability budget target of 3,500 kg CO₂e/year.
+                </p>
+              </div>
+              
+              <div className="p-4 border border-zinc-200 rounded-xl bg-zinc-50/50 space-y-1.5">
+                <span className="text-zinc-500 font-semibold block text-[10px] uppercase tracking-wider">Annual Carbon Footprint</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-extrabold text-zinc-900">{emissionsBreakdown.total.toLocaleString()}</span>
+                  <span className="text-xs font-bold text-zinc-500">kg CO₂e</span>
+                </div>
+                <p className="text-[10px] text-zinc-500 leading-snug">
+                  The total greenhouse gas emissions generated by your energy, transport, food, waste, and shopping habits.
+                </p>
+              </div>
+            </section>
+
+            {/* Emissions Breakdown Table */}
+            <section className="space-y-3">
+              <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wider border-b border-zinc-200 pb-1.5 flex items-center gap-2">
+                <span>📊</span> Annual Carbon Emissions Breakdown
+              </h2>
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-zinc-300 text-zinc-500 font-semibold uppercase tracking-wider text-[10px]">
+                    <th className="py-2">Category</th>
+                    <th className="py-2 text-right">Annual Emissions</th>
+                    <th className="py-2 text-right">Percentage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {categories.map((c) => {
+                    const pct = emissionsBreakdown.total > 0 ? ((c.value / emissionsBreakdown.total) * 100).toFixed(0) : "0";
+                    return (
+                      <tr key={c.key} className="border-b border-zinc-100">
+                        <td className="py-2.5 font-medium text-zinc-800">{c.name}</td>
+                        <td className="py-2.5 text-right text-zinc-700">{c.value.toLocaleString()} kg CO₂e</td>
+                        <td className="py-2.5 text-right text-zinc-700 font-semibold">{pct}%</td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="font-bold border-t-2 border-zinc-300 bg-zinc-50/50">
+                    <td className="py-3 text-zinc-950 text-sm">Total Carbon Footprint</td>
+                    <td className="py-3 text-right text-zinc-950 text-sm">{emissionsBreakdown.total.toLocaleString()} kg CO₂e</td>
+                    <td className="py-3 text-right text-zinc-950 text-sm">100%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            {/* Eco Equivalents Grid */}
+            <section className="space-y-3">
+              <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wider border-b border-zinc-200 pb-1.5 flex items-center gap-2">
+                <span>🌍</span> Ecological Counterparts & Equivalents
+              </h2>
+              <div className="grid grid-cols-3 gap-4 text-xs">
+                {equivalents.map((eq) => (
+                  <div key={eq.id} className="p-3 border border-zinc-200 rounded-xl space-y-1 bg-white">
+                    <span className="text-zinc-500 font-semibold block text-[10px] uppercase tracking-wider">{eq.label}</span>
+                    <span className="text-sm font-bold text-zinc-900">{eq.value}</span>
+                    <p className="text-[10px] text-zinc-400 leading-snug">{eq.description}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+          </div>
+          
+          <footer className="border-t border-zinc-200 pt-3 flex justify-between items-center text-[10px] text-zinc-400">
+            <div>CarbonWise AI — AI-powered sustainability insights.</div>
+            <div>Page 1 of 2</div>
+          </footer>
+        </div>
+
+        {/* PAGE 2 */}
+        <div className="print-page py-6">
+          <div className="space-y-6">
+            
+            {/* Mini Header for Page 2 */}
+            <header className="border-b border-zinc-200 pb-3 flex justify-between items-center">
+              <span className="text-md font-bold text-emerald-700 flex items-center gap-1">
+                <span>🌱</span> CarbonWise AI
+              </span>
+              <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">Assessment & Recommendations</span>
+            </header>
+
+            {/* AI Coaching Recommendations */}
+            <section className="space-y-3">
+              <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wider border-b border-zinc-200 pb-1.5 flex items-center gap-2">
+                <span>💡</span> Key AI-Driven Recommendations
+              </h2>
+              <div className="space-y-3">
+                {impactActions.map((action, i) => (
+                  <div key={i} className="p-3.5 border border-zinc-200 rounded-xl space-y-1 bg-white">
+                    <div className="flex justify-between items-start">
+                      <h3 className="font-bold text-xs text-zinc-900">{i + 1}. {action.title}</h3>
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wide">
+                        {action.difficulty} | {action.timeline}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-zinc-600 leading-relaxed">{action.description}</p>
+                    <div className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                      <span>📉</span> Estimated Carbon Savings: {action.co2SavedAnnual.toLocaleString()} kg CO₂/year
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Active Habits & Streaks */}
+            <section className="space-y-3">
+              <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wider border-b border-zinc-200 pb-1.5 flex items-center gap-2">
+                <span>🏆</span> Sustainability Habits & Active Streaks
+              </h2>
+              <div className="grid grid-cols-2 gap-3.5 text-xs">
+                {habits.map((habit) => (
+                  <div key={habit.id} className="flex justify-between items-center p-3 border border-zinc-150 rounded-xl bg-zinc-50/30">
+                    <span className="text-zinc-700 font-medium">{habit.name}</span>
+                    <span className="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[10px]">
+                      Streak: {habit.streak} days
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Methodology & Project Info */}
+            <section className="grid grid-cols-2 gap-4 border border-zinc-200 rounded-xl p-4 bg-zinc-50/50">
+              <div className="space-y-1.5 border-r border-zinc-200 pr-4">
+                <h3 className="font-bold text-xs text-zinc-800 flex items-center gap-1">
+                  <span>📘</span> Methodology
+                </h3>
+                <p className="text-[10px] text-zinc-600 leading-relaxed">
+                  Carbon estimates are based on configurable regional emission factors and user-provided inputs. Results are intended for awareness, education, and sustainability planning purposes and should be interpreted as informed estimates rather than exact measurements.
+                </p>
+              </div>
+              <div className="space-y-1.5 pl-4">
+                <h3 className="font-bold text-xs text-zinc-800 flex items-center gap-1">
+                  <span>🔗</span> Project Resources
+                </h3>
+                <div className="space-y-2 text-[10px]">
+                  <div>
+                    <span className="font-semibold text-zinc-500 block">Live Demo</span>
+                    <a href="https://carbonwiseai.vercel.app/" target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-semibold hover:underline">
+                      https://carbonwiseai.vercel.app/
+                    </a>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-zinc-500 block">GitHub Repository</span>
+                    <a href="https://github.com/yashgupta29032006/CarbonWise-AI" target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-semibold hover:underline">
+                      https://github.com/yashgupta29032006/CarbonWise-AI
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+          </div>
+
+          <footer className="border-t border-zinc-200 pt-3 flex justify-between items-center text-[10px] text-zinc-400">
+            <div>CarbonWise AI — AI-powered sustainability insights.</div>
+            <div>Page 2 of 2</div>
+          </footer>
+        </div>
+
+      </div>
 
       <Footer />
     </div>
